@@ -1,0 +1,48 @@
+# ===============  VRF interfaces ================
+auto Client1
+iface Client1 inet manual
+#    pre-up ip link add Client1 type vrf table 10
+#    up ip link set dev Client1 up
+#    down ip link set dev Client1 down
+#    post-down ip link del Client1
+
+auto Client2
+iface Client2 inet manual
+#    pre-up ip link add Client2 type vrf table 20
+#    up ip link set dev Client2 up
+#    down ip link set dev Client2 down
+#    post-down ip link del Client2
+
+# ===============  Network interfaces ================
+
+allow-hotplug eth0
+iface eth0 inet manual
+
+allow-hotplug eth1
+iface eth1 inet manual
+
+allow-hotplug eth2
+iface eth2 inet manual
+
+allow-hotplug eth3
+iface eth3 inet manual
+
+allow-hotplug eth4
+iface eth4 inet manual
+#    pre-up ip link set dev eth4 master Client1
+
+allow-hotplug eth5
+iface eth5 inet manual
+#    pre-up ip link set dev eth5 master Client2
+
+# ===============  Loopback interfaces ================
+
+allow-hotplug lo
+iface lo inet manual
+   pre-up ip link add lo type dummy
+   up ip link set dev lo up
+
+allow-hotplug lo1
+iface lo1 inet manual
+   pre-up ip link add lo1 type dummy
+   up ip link set dev lo1 up
