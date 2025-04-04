@@ -1,0 +1,314 @@
+---
+- name: Configure SRv6 Routers and SRv6 tunnels (forward and reverse)
+  hosts: routers
+  become: true
+  tasks:
+    #########################################################################
+    # SYSTEM-WIDE SRV6 AND FORWARDING CONFIG
+    #########################################################################
+    - name: Enable SRv6 globally
+      ansible.builtin.sysctl:
+        name: net.ipv6.conf.all.seg6_enabled
+        value: "1"
+        state: present
+        reload: yes
+
+    - name: Enable SRv6 on default interface
+      ansible.builtin.sysctl:
+        name: net.ipv6.conf.default.seg6_enabled
+        value: "1"
+        state: present
+        reload: yes
+
+    - name: Enable forwarding on router interfaces
+      ansible.builtin.sysctl:
+        name: net.ipv6.conf.all.forwarding
+        value: "1"
+        state: present
+        reload: yes
+
+    # -------------------------------------------------------------------------
+    #  INTERFACE CONFIGURATION PER ROUTER
+    # -------------------------------------------------------------------------
+    - name: Configure interfaces for r1
+      when: inventory_hostname == "r1"
+      block:
+        - name: Set IPv6 address on ens4 (h1-r1 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:10:1::1/64 dev ens4
+        - name: Set IPv6 address on ens5 (r1-r2 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:20:1::1/64 dev ens5
+        - name: Set IPv6 address on ens6 (r1-r4 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:50:1::2/64 dev ens6
+        - name: Bring up all interfaces for r1
+          ansible.builtin.shell: |
+            for intf in ens4 ens5 ens6; do
+              ip link set dev $intf up
+            done
+
+    - name: Configure interfaces for r2
+      when: inventory_hostname == "r2"
+      block:
+        - name: Set IPv6 address on ens4 (r1-r2 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:20:1::2/64 dev ens4
+        - name: Set IPv6 address on ens5 (r2-r3 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:30:1::1/64 dev ens5
+        - name: Bring up all interfaces for r2
+          ansible.builtin.shell: |
+            for intf in ens4 ens5; do
+              ip link set dev $intf up
+            done
+
+    - name: Configure interfaces for r3
+      when: inventory_hostname == "r3"
+      block:
+        - name: Set IPv6 address on ens4 (r2-r3 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:30:1::2/64 dev ens4
+        - name: Set IPv6 address on ens5 (r3-r4 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:40:1::1/64 dev ens5
+        - name: Bring up all interfaces for r3
+          ansible.builtin.shell: |
+            for intf in ens4 ens5; do
+              ip link set dev $intf up
+            done
+
+    - name: Configure interfaces for r4
+      when: inventory_hostname == "r4"
+      block:
+        - name: Set IPv6 address on ens4 (r1-r4 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:50:1::1/64 dev ens4
+        - name: Set IPv6 address on ens5 (r3-r4 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:40:1::2/64 dev ens5
+        - name: Set IPv6 address on ens6 (r4-h2 link)
+          ansible.builtin.command: ip -6 addr add 2001:db8:60:1::1/64 dev ens6
+        - name: Bring up all interfaces for r4
+          ansible.builtin.shell: |
+            for intf in ens4 ens5 ens6; do
+              ip link set dev $intf up
+            done
+
+    #########################################################################
+    # STATIC ROUTES FOR NORMAL (NON-SRv6) NETWORKS
+    #########################################################################
+    - name: Configure static routes for r1
+      when: inventory_hostname == "r1"
+      block:
+        - name: Route to r2-r3 link
+          ansible.builtin.command: ip -6 route add 2001:db8:30:1::/64 via 2001:db8:20:1::2 dev ens5
+        - name: Route to r3-r4 link
+          ansible.builtin.command: ip -6 route add 2001:db8:40:1::/64 via 2001:db8:20:1::2 dev ens5
+        - name: Route to r4-h2 link
+          ansible.builtin.command: ip -6 route add 2001:db8:60:1::/64 via 2001:db8:50:1::1 dev ens6
+
+    - name: Configure static routes for r2
+      when: inventory_hostname == "r2"
+      block:
+        - name: Route to h1-r1 link
+          ansible.builtin.command: ip -6 route add 2001:db8:10:1::/64 via 2001:db8:20:1::1 dev ens4
+        - name: Route to r3-r4 link
+          ansible.builtin.command: ip -6 route add 2001:db8:40:1::/64 via 2001:db8:30:1::2 dev ens5
+        - name: Route to r1-r4 network
+          ansible.builtin.command: ip -6 route add 2001:db8:50:1::/64 via 2001:db8:20:1::1 dev ens4
+        - name: Route to r4-h2 link
+          ansible.builtin.command: ip -6 route add 2001:db8:60:1::/64 via 2001:db8:30:1::2 dev ens5
+
+    - name: Configure static routes for r3
+      when: inventory_hostname == "r3"
+      block:
+        - name: Route to h1-r1 link
+          ansible.builtin.command: ip -6 route add 2001:db8:10:1::/64 via 2001:db8:30:1::1 dev ens4
+        - name: Route to r1-r2 link
+          ansible.builtin.command: ip -6 route add 2001:db8:20:1::/64 via 2001:db8:30:1::1 dev ens4
+        - name: Route to r1-r4 link
+          ansible.builtin.command: ip -6 route add 2001:db8:50:1::/64 via 2001:db8:40:1::2 dev ens5
+        - name: Route to r4-h2 link
+          ansible.builtin.command: ip -6 route add 2001:db8:60:1::/64 via 2001:db8:40:1::2 dev ens5
+
+    - name: Configure static routes for r4
+      when: inventory_hostname == "r4"
+      block:
+        - name: Route to h1-r1 link
+          ansible.builtin.command: ip -6 route add 2001:db8:10:1::/64 via 2001:db8:40:1::1 dev ens5
+        - name: Route to r1-r2 link
+          ansible.builtin.command: ip -6 route add 2001:db8:20:1::/64 via 2001:db8:40:1::1 dev ens5
+        - name: Route to r2-r3 link
+          ansible.builtin.command: ip -6 route add 2001:db8:30:1::/64 via 2001:db8:40:1::1 dev ens5
+
+    #########################################################################
+    # SRv6 SIDs ON EACH ROUTER (LOOPBACK + END FUNCTION)
+    #########################################################################
+    # We'll define a unique loopback SID per router: 2001:db8:ff:<router>::1
+    # Then "replace" the local /128 route with 'encap seg6local action End'
+    # so the kernel does SRv6 processing.
+
+    - name: Configure SRv6 loopback + End for r1
+      when: inventory_hostname == "r1"
+      block:
+        - name: Assign r1's SID on lo
+          ansible.builtin.command: ip -6 addr add 2001:db8:ff:1::1/128 dev lo
+          ignore_errors: true  # in case route already exists
+
+        - name: Override local route with seg6local End.DT6
+          ansible.builtin.command: >
+            ip -6 route replace local 2001:db8:ff:1::1/128 dev lo encap seg6local action End.DT6 table local
+
+        - name: Remove fractions of the local route
+          ansible.builtin.command: >
+            ip -6 route del local 2001:db8:ff:1::1/128 dev lo
+
+        - name: Placing lo subnet6 to local rt table
+          ansible.builtin.command: >
+            ip -6 route replace table local 2001:db8:10:1::/64 dev ens4
+
+        - name: Setup the R1 LocatorID as SRv6 source
+          ansible.builtin.command: ip sr tunsrc set 2001:db8:ff:1::1
+
+    - name: Configure SRv6 loopback + End for r2
+      when: inventory_hostname == "r2"
+      block:
+        - name: Assign r2's SID on lo
+          ansible.builtin.command: ip -6 addr add 2001:db8:ff:2::1/128 dev lo
+          ignore_errors: true
+
+        - name: Override local route with seg6local End
+          ansible.builtin.command: >
+            ip -6 route replace local 2001:db8:ff:2::1/128 dev lo encap seg6local action End
+
+        - name: Remove fractions of the local route
+          ansible.builtin.command: >
+            ip -6 route del local 2001:db8:ff:2::1/128 dev lo
+
+        - name: Setup the R2 LocatorID as SRv6 source
+          ansible.builtin.command: ip sr tunsrc set 2001:db8:ff:2::1
+
+    - name: Configure SRv6 loopback + End for r3
+      when: inventory_hostname == "r3"
+      block:
+        - name: Assign r3's SID on lo
+          ansible.builtin.command: ip -6 addr add 2001:db8:ff:3::1/128 dev lo
+          ignore_errors: true
+
+        - name: Override local route with seg6local End
+          ansible.builtin.command: >
+            ip -6 route replace local 2001:db8:ff:3::1/128 dev lo encap seg6local action End
+
+        - name: Remove fractions of the local route
+          ansible.builtin.command: >
+            ip -6 route del local 2001:db8:ff:3::1/128 dev lo
+
+        - name: Setup the R3 LocatorID as SRv6 source
+          ansible.builtin.command: ip sr tunsrc set 2001:db8:ff:3::1
+
+    - name: Configure SRv6 loopback + End for r4
+      when: inventory_hostname == "r4"
+      block:
+        - name: Assign r4's SID on lo
+          ansible.builtin.command: ip -6 addr add 2001:db8:ff:4::1/128 dev lo
+          ignore_errors: true
+
+        - name: Override local route with seg6local End.DT6
+          ansible.builtin.command: >
+            ip -6 route replace local 2001:db8:ff:4::1/128 dev lo encap seg6local action End.DT6 table local
+
+        - name: Remove fractions of the local route
+          ansible.builtin.command: >
+            ip -6 route del local 2001:db8:ff:4::1/128 dev lo
+
+        - name: Placing lo subnet6 to local rt table
+          ansible.builtin.command: >
+            ip -6 route replace table local 2001:db8:60:1::/64 dev ens6
+
+        - name: Setup the R4 LocatorID as SRv6 source
+          ansible.builtin.command: ip sr tunsrc set 2001:db8:ff:4::1
+
+    #########################################################################
+    # STATIC ROUTES FOR REACHING REMOTE SIDs
+    #########################################################################
+    # Each router needs to forward packets for the others' 2001:db8:ff:<X>::1
+    # addresses. We'll add single /128 routes or a /48 summary. Up to you.
+    # Below, we do per-SID routes as in your original approach.
+
+    - name: R1 add routes to R2, R3, R4 SIDs
+      when: inventory_hostname == "r1"
+      block:
+        - name: 2001:db8:ff:2::1 via R2
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:2::1/128 via 2001:db8:20:1::2 dev ens5
+        - name: 2001:db8:ff:3::1 via R2
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:3::1/128 via 2001:db8:20:1::2 dev ens5
+        - name: 2001:db8:ff:4::1 via R4
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:4::1/128 via 2001:db8:50:1::1 dev ens6
+
+    - name: R2 add routes to R1, R3, R4 SIDs
+      when: inventory_hostname == "r2"
+      block:
+        - name: 2001:db8:ff:1::1 via R1
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:1::1/128 via 2001:db8:20:1::1 dev ens4
+        - name: 2001:db8:ff:3::1 via R3
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:3::1/128 via 2001:db8:30:1::2 dev ens5
+        - name: 2001:db8:ff:4::1 via R3
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:4::1/128 via 2001:db8:30:1::2 dev ens5
+
+    - name: R3 add routes to R1, R2, R4 SIDs
+      when: inventory_hostname == "r3"
+      block:
+        - name: 2001:db8:ff:1::1 via R2
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:1::1/128 via 2001:db8:30:1::1 dev ens4
+        - name: 2001:db8:ff:2::1 via R2
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:2::1/128 via 2001:db8:30:1::1 dev ens4
+        - name: 2001:db8:ff:4::1 via R4
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:4::1/128 via 2001:db8:40:1::2 dev ens5
+
+    - name: R4 add routes to R1, R2, R3 SIDs
+      when: inventory_hostname == "r4"
+      block:
+        - name: 2001:db8:ff:1::1 via R3
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:1::1/128 via 2001:db8:40:1::1 dev ens5
+        - name: 2001:db8:ff:2::1 via R3
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:2::1/128 via 2001:db8:40:1::1 dev ens5
+        - name: 2001:db8:ff:3::1 via R3
+          ansible.builtin.command: ip -6 route add 2001:db8:ff:3::1/128 via 2001:db8:40:1::1 dev ens5
+
+    #########################################################################
+    # SRv6 STEERING (FORWARD + REVERSE PATH)
+    #########################################################################
+    # Forward path: h1->h2: R1 -> R2 -> R3 -> R4
+    - name: Configure SRv6 steering on r1 (from h1 to h2)
+      when: inventory_hostname == "r1"
+      ansible.builtin.command: >
+        ip -6 route replace 2001:db8:60:1::/64 encap seg6 mode encap segs 2001:db8:ff:2::1,2001:db8:ff:3::1,2001:db8:ff:4::1 dev ens5 src 2001:db8:10:1::1
+
+    # Reverse path: h2->h1: R4 -> R3 -> R2 -> R1
+    - name: Configure SRv6 steering on r4 (from h2 to h1)
+      when: inventory_hostname == "r4"
+      ansible.builtin.command: >
+        ip -6 route replace 2001:db8:10:1::/64 encap seg6 mode encap segs 2001:db8:ff:3::1,2001:db8:ff:2::1,2001:db8:ff:1::1 dev ens5 src 2001:db8:60:1::1
+
+
+- name: Configure SRv6 Hosts
+  hosts: hosts
+  become: true
+  tasks:
+    - name: Configure interface for h1
+      when: inventory_hostname == "h1"
+      block:
+        - name: Bring up ens4 on h1
+          ansible.builtin.command: ip link set dev ens4 up
+        - name: Set IPv6 address on ens4
+          ansible.builtin.command: ip -6 addr add 2001:db8:10:1::2/64 dev ens4
+        - name: Set default route on h1 via r1
+          ansible.builtin.command: ip -6 route add default via 2001:db8:10:1::1 dev ens4
+        - name: Set h2 route on h1 via r1
+          ansible.builtin.command: ip -6 route replace 2001:db8:60:1::/64 dev ens4 via 2001:db8:10:1::1
+
+    - name: Configure interface for h2
+      when: inventory_hostname == "h2"
+      block:
+        - name: Bring up ens4 on h2
+          ansible.builtin.command: ip link set dev ens4 up
+        - name: Set IPv6 address on ens4
+          ansible.builtin.command: ip -6 addr add 2001:db8:60:1::2/64 dev ens4
+        - name: Set default route on h2 via r4
+          ansible.builtin.command: ip -6 route add default via 2001:db8:60:1::1 dev ens4
+        - name: Set h1 route on h2 via r4
+          ansible.builtin.command: ip -6 route replace 2001:db8:10:1::/64 dev ens4 via 2001:db8:60:1::1
+
+

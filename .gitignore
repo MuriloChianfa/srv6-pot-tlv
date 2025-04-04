@@ -51,3 +51,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Project specific files
+topologies/qemu-virtual-srv6/**/*.img

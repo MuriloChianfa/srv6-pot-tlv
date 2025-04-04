@@ -1,0 +1,51 @@
+#cloud-config
+# Set the hostname for the VM
+hostname: r1
+
+# Configure a default user with sudo privileges and a password
+users:
+  - name: r1
+    gecos: "Default User"
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    groups: [sudo]
+    shell: /bin/bash
+    lock_passwd: false
+    plain_text_passwd: r1
+
+# Allow SSH password authentication
+ssh_pwauth: True
+
+# Network configuration using the version 2 format
+network:
+  version: 2
+  ethernets:
+    ens4:
+      addresses:
+        - 2001:db8:10:1::1/64   # Set the IPv6 address for eth0
+      gateway6: 2001:db8:10:1::2
+      nameservers:
+        addresses:
+          - 2001:4860:4860::8888
+          - 2001:4860:4860::8844
+    ens5:
+      addresses:
+        - 2001:db8:20:1::1/64   # Set the IPv6 address for eth0
+      gateway6: 2001:db8:20:1::2
+      nameservers:
+        addresses:
+          - 2001:4860:4860::8888
+          - 2001:4860:4860::8844
+    ens6:
+      addresses:
+        - 2001:db8:50:1::2/64   # Set the IPv6 address for eth0
+      gateway6: 2001:db8:50:1::1
+      nameservers:
+        addresses:
+          - 2001:4860:4860::8888
+          - 2001:4860:4860::8844
+
+# Run commands to ensure SSH is enabled and started
+runcmd:
+  - systemctl enable ssh
+  - systemctl start ssh
+
