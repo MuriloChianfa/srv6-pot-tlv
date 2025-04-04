@@ -52,5 +52,13 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+# Go workspace file
+go.work
+go.work.sum
+
+# Log file
+*.log
+
 # Project specific files
 topologies/qemu-virtual-srv6/**/*.img
+topologies/qemu-virtual-srv6/**/*.log
