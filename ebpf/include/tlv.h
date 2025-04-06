@@ -34,6 +34,16 @@ Total TLV length = 48 bytes.
 #define BLAKE3_POT_TLV_LEN offsetof(struct blake3_pot_tlv)
 #define BLAKE3_POT_TLV_TYPE 0xFE
 
-int add_tlv(struct __sk_buff *skb, void *data, void *data_end, struct blake3_pot_tlv *tlv);
+static __always_inline int add_tlv(struct __sk_buff *skb, void *data, void *data_end, struct blake3_pot_tlv *tlv)
+{
+    struct ipv6hdr *ipv6 = data + sizeof(struct ethhdr);
+
+    if (data + sizeof(struct ethhdr) + sizeof(struct ipv6hdr) > data_end)
+        return -1;
+
+    // TODO: write new tlv into srh...
+
+    return 0;
+}
 
 #endif /* __BLAKE3_POT_TLV_H */

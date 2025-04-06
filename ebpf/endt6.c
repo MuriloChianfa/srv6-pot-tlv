@@ -11,9 +11,9 @@
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 
-#include <blake3.h>
-#include <srh.h>
-#include <tlv.h>
+#include "include/blake3.h"
+#include "include/srh.h"
+#include "include/tlv.h"
 
 SEC("xdp")
 int seg6_dt6_blake3_pot_tlv_validator(struct xdp_md *ctx)
