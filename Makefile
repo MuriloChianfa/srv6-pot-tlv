@@ -1,33 +1,20 @@
-# bpf/Makefile
+SRC_DIR := ebpf
+LIB_DIR := lib
+BUILD_DIR := build
 
-BPF_CFLAGS := -O2 -g \
-  -target bpf \
-  -Wextra \
-  -I./ebpf/ -I/usr/include/
+EBPF_TARGETS := endt6 endx
 
-BPF_SRCS := ebpf/seg6_blake3_pot_tlv.c
-BPF_OBJS := ebpf/seg6_blake3_pot_tlv.o
-BPF_IF   := enp2s0
-TARGET   := seg6_blake3_pot_tlvy
+CLANG := clang
+CLANG_FLAGS := -O2 -g -Wextra -target bpf -I$(SRC_DIR)/$(LIB_DIR) -I/usr/include/
 
-.PHONY: cmd
+$(shell mkdir -p $(BUILD_DIR))
 
-all: cmd $(BPF_OBJS)
+all: $(EBPF_TARGETS)
 
-%.o: %.c
-	clang $(BPF_CFLAGS) -c $< -o $@
-
-cmd:
-	#go build -C cmd -o ../$(TARGET)
+$(EBPF_TARGETS):
+	$(CLANG) $(CLANG_FLAGS) -c $(SRC_DIR)/$@.c -o $(BUILD_DIR)/$@.o
 
 clean:
-	rm -f $(BPF_OBJS)
-	rm -f $(TARGET)
+	rm -rf $(BUILD_DIR)
 
-show:
-	sudo bpftool prog show
-	sudo bpftool map list
-
-logs:
-	echo 1 | sudo tee /sys/kernel/debug/tracing/tracing_on
-	sudo cat /sys/kernel/debug/tracing/trace_pipe
+.PHONY: all clean $(EBPF_TARGETS)

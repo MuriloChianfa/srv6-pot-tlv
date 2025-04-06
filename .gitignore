@@ -58,6 +58,7 @@ go.work.sum
 
 # Log file
 *.log
+.vscode
 
 # Project specific files
 topologies/qemu-virtual-srv6/**/*.img
