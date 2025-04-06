@@ -16,7 +16,7 @@
 #include "include/tlv.h"
 
 SEC("xdp")
-int seg6_endx_blake3_pot_tlv_validator(struct xdp_md *ctx)
+int seg6_dnode(struct xdp_md *ctx)
 {
     void *data_end = (void *)(long)ctx->data_end;
     void *data = (void *)(long)ctx->data;
@@ -40,9 +40,9 @@ int seg6_endx_blake3_pot_tlv_validator(struct xdp_md *ctx)
             if (srh_check_boundaries(srh, data_end) < 0)
                 return XDP_DROP;
 
-            // TODO: check the blake3 pot tlv chain partial validity...
+            // TODO: check the blake3 pot tlv chain validity...
         
-            bpf_printk("[End.X] Segment packet processed");
+            bpf_printk("[dnode] Last-Segment packet processed");
             return XDP_PASS;
         default:
             return XDP_PASS;
@@ -52,7 +52,7 @@ int seg6_endx_blake3_pot_tlv_validator(struct xdp_md *ctx)
 }
 
 SEC("tc")
-int seg6_endx_blake3_pot_tlv_incrementor(struct __sk_buff *skb)
+int seg6_snode(struct __sk_buff *skb)
 {
     void *data_end = (void *)(long)skb->data_end;
     void *data = (void *)(long)skb->data;
@@ -69,16 +69,18 @@ int seg6_endx_blake3_pot_tlv_incrementor(struct __sk_buff *skb)
     if ((void *)(ipv6 + 1) > data_end)
         return TC_ACT_OK;
 
-    struct blake3_pot_tlv *blake3_pot_tlv = {0};
+    struct blake3_pot_tlv *blake3_pot_tlv;
 
     switch (ipv6->nexthdr) {
         case SRH_NEXT_HEADER:
-            if (add_tlv(skb, data, data_end, blake3_pot_tlv) < 0)
+            // TODO: check if the currect segment is the first one before to add the tlv
+
+            if (add_tlv(skb, data, data_end, blake3_pot_tlv) != 0)
                 return TC_ACT_SHOT;
-            
-            // TODO: calculate and update the blake3 pot tlv chain for proof-of-transit of current segment...
+
+            // TODO: calculate and inject the new blake3 pot tlv chain for proof-of-transit...
         
-            bpf_printk("[End.DT6] First-Segment packet processed");
+            bpf_printk("[snode] First-Segment packet processed");
         default:
             return TC_ACT_OK;
     }
