@@ -2,19 +2,19 @@
 <h3 align="center">Based on BLAKE3 Keyed-hash through eBPF XDP and TC</h3>
 
 ```bash
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |   Type (8b)   |  Length (8b)  |      Reserved/Flags (16b)     |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |                          Token (32b)                          |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |                        Timestamp (64b)                        |
- |                            ...                                |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |                        (BLAKE3 256b)                          |
- |                            ...                                |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                 0                   1                   2                   3
+                 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                |   Type (8b)   |  Length (8b)  |      Reserved/Flags (16b)     |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                |                          Token (32b)                          |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                |                        Timestamp (64b)                        |
+                |                            ...                                |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                |                        (BLAKE3 256b)                          |
+                |                            ...                                |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
 This project demonstrates a mechanism for achieving **Proof-of-Transit (PoT)** in an **SRv6 (Segment Routing over IPv6)** network using **eBPF  (Extended Berkeley Packet Filter)** attached to Linux **TC (Traffic Control)** and **XDP (eXpress Data Path)** hooks.
@@ -52,9 +52,7 @@ make all
 # Load eBPF XDP
 bpftool prog load seg6_node.o /sys/fs/bpf/seg6_node type xdp
 bpftool net attach xdp pin /sys/fs/bpf/seg6_node dev ens5
-```
 
-```bash
 # Unload eBPF XDP
 bpftool net detach xdp dev ens5
 rm /sys/fs/bpf/seg6_node
@@ -66,9 +64,7 @@ rm /sys/fs/bpf/seg6_node
 # Load eBPF TC
 tc qdisc add dev ens5 clsact
 tc filter add dev ens5 egress bpf da obj seg6_node.o sec tc
-```
 
-```bash
 # Unload eBPF TC
 tc qdisc delete dev ens5 clsact
 ```
@@ -78,9 +74,7 @@ tc qdisc delete dev ens5 clsact
 ```bash
 # Monitor eBPF logs
 bpftool prog trace
-```
 
-```bash
 # Monitor SRv6 packets
 tcpdump -pni any "ip6[6]==43" -vvv -x
 tshark -i any -p -f "ip6[6]==43" -V -x
