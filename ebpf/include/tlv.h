@@ -8,13 +8,19 @@
 
 /*
 Define the custom TLV structure for proof-of-transit using BLAKE3.
-0                   1                   2                   3
-0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-----------------------------------------------------------------+
-|      Type      |    Length     |      Reserved/Flags (16 bits)  |
-+-----------------------------------------------------------------+
-|                         (BLAKE3 Hashs)                          |
-+-----------------------------------------------------------------+
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+|   Type (8b)   |  Length (8b)  |      Reserved/Flags (16b)      |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+|                          Token (32b)                           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+|                        Timestamp (64b)                         |
+|                            ...                                 |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+|                        (BLAKE3 256b)                           |
+|                            ...                                 |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 */
 struct blake3_pot_tlv {
     __u8 type;
@@ -57,7 +63,7 @@ static __always_inline int compute_blake3(struct blake3_pot_tlv *tlv)
     return 0;
 }
 
-static __always_inline int append_ip6_tlv_len(struct __sk_buff *skb)
+static __always_inline int recalc_ip6_tlv_len(struct __sk_buff *skb)
 {
     // ! We really need to refresh skb data pointers before to rewrite them
     void *data = (void *)(long)skb->data;
@@ -71,7 +77,7 @@ static __always_inline int append_ip6_tlv_len(struct __sk_buff *skb)
     return 0;
 }
 
-static __always_inline int append_skb_tlv_len(struct __sk_buff *skb)
+static __always_inline int recalc_skb_tlv_len(struct __sk_buff *skb)
 {
     // ! We really need to refresh skb data pointers before to rewrite them
     void *data = (void *)(long)skb->data;
@@ -107,8 +113,8 @@ static __always_inline int add_blake3_pot_tlv(struct __sk_buff *skb)
         return -1;
     }
 
-    append_ip6_tlv_len(skb);
-    append_skb_tlv_len(skb);
+    recalc_ip6_tlv_len(skb);
+    recalc_skb_tlv_len(skb);
 
     if (inc_skb_hdr_len(skb, BLAKE3_POT_TLV_LEN) < 0)
         return -1;
