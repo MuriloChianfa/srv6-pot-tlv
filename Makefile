@@ -5,7 +5,7 @@ BUILD_DIR := build
 EBPF_TARGETS := seg6_node seg6_transit
 
 CLANG := clang
-CLANG_FLAGS := -O2 -Wextra -target bpf -D__TARGET_ARCH_x86 -I$(SRC_DIR)/$(INCLUDE_DIR) -I/usr/include/
+CLANG_FLAGS := -O2 -Wextra -target bpf -I$(SRC_DIR)/$(INCLUDE_DIR) -I/usr/include/
 
 $(shell mkdir -p $(BUILD_DIR))
 

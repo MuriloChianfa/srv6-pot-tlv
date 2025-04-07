@@ -12,6 +12,7 @@
 #include <bpf/bpf_helpers.h>
 
 #include "include/blake3.h"
+#include "include/hdr.h"
 #include "include/srh.h"
 #include "include/tlv.h"
 
@@ -37,7 +38,7 @@ int seg6_dnode(struct xdp_md *ctx)
 
     switch (ipv6->nexthdr) {
         case SRH_NEXT_HEADER:
-            if (srh_check_boundaries(srh, data_end) < 0)
+            if (srh_hdr_cb(srh, data_end) < 0)
                 return XDP_DROP;
 
             // TODO: check the blake3 pot tlv chain validity...
@@ -54,33 +55,39 @@ int seg6_dnode(struct xdp_md *ctx)
 SEC("tc")
 int seg6_snode(struct __sk_buff *skb)
 {
-    void *data_end = (void *)(long)skb->data_end;
     void *data = (void *)(long)skb->data;
+    void *end = (void *)(long)skb->data_end;
 
-    struct ethhdr *eth = data;
-    struct ipv6hdr *ipv6 = (struct ipv6hdr *)(eth + 1);
+    struct ethhdr *eth = ETH_HDR_PTR;
+    struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
 
-    if ((void *)(eth + 1) > data_end)
+    if (eth_hdr_cb(eth, end) < 0)
         return TC_ACT_OK;
 
     if (eth->h_proto != bpf_htons(ETH_P_IPV6))
         return TC_ACT_OK;
 
-    if ((void *)(ipv6 + 1) > data_end)
+    if (ip6_hdr_cb(ipv6, end) < 0)
         return TC_ACT_OK;
-
-    struct blake3_pot_tlv *blake3_pot_tlv;
 
     switch (ipv6->nexthdr) {
         case SRH_NEXT_HEADER:
-            // TODO: check if the currect segment is the first one before to add the tlv
+            struct srh *srh = SRH_HDR_PTR;
 
-            if (add_tlv(skb, data, data_end, blake3_pot_tlv) != 0)
+            if (srh_hdr_cb(srh, end) < 0)
+                return TC_ACT_OK;
+
+            if (seg6_first_sid(srh) < 0) {
+                bpf_printk("[snode] Not the first segment, skipping TLV add");
+                return TC_ACT_OK;
+            }
+
+            if (add_blake3_pot_tlv(skb) != 0) {
+                bpf_printk("[snode] add_tlv failed");
                 return TC_ACT_SHOT;
+            }
 
-            // TODO: calculate and inject the new blake3 pot tlv chain for proof-of-transit...
-        
-            bpf_printk("[snode] First-Segment packet processed");
+            bpf_printk("[snode] TLV added successfully");
         default:
             return TC_ACT_OK;
     }

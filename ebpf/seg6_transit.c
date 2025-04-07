@@ -37,7 +37,7 @@ int seg6_dtransit(struct xdp_md *ctx)
 
     switch (ipv6->nexthdr) {
         case SRH_NEXT_HEADER:
-            if (srh_check_boundaries(srh, data_end) < 0)
+            if (srh_hdr_cb(srh, data_end) < 0)
                 return XDP_DROP;
 
             // TODO: check the blake3 pot tlv chain partial validity...

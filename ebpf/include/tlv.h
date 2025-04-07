@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include "blake3.h"
 #include "srh.h"
+#include "hdr.h"
 
 /*
 Define the custom TLV structure for proof-of-transit using BLAKE3.
@@ -34,35 +35,83 @@ Total TLV length = 48 bytes.
  Bytes 16-47: BLAKE3 digest (32 bytes)
 */
 #define BLAKE3_POT_TLV_LEN sizeof(struct blake3_pot_tlv)
+#define BLAKE3_POT_TLV_WR_LEN (BLAKE3_POT_TLV_LEN - 2) // 14 transit + 32 digest
+#define BLAKE3_POT_TLV_EXT_LEN (BLAKE3_POT_TLV_LEN / 8)
 #define BLAKE3_POT_TLV_TYPE 4 // Defines a new TLV type
 
-static __always_inline int add_tlv(struct __sk_buff *skb, void *data, void *data_end, struct blake3_pot_tlv *tlv)
+static __always_inline int compute_blake3(struct blake3_pot_tlv *tlv)
 {
-    if (data + sizeof(struct ethhdr) + sizeof(struct ipv6hdr) > data_end)
-        return -1;
-
-    struct ipv6hdr *ipv6 = data + sizeof(struct ethhdr);
-    struct ipv6_sr_hdr *srh = data + sizeof(struct ethhdr) + sizeof(struct ipv6hdr);
-
-    ipv6->payload_len = bpf_htons(bpf_ntohs(ipv6->payload_len) + sizeof(struct srh) + BLAKE3_POT_TLV_LEN);
-	ipv6->nexthdr = SRH_NEXT_HEADER;
-
-    bpf_skb_adjust_room(skb, BLAKE3_POT_TLV_LEN + 8, BPF_ADJ_ROOM_NET, 0);
-
     tlv->type = BLAKE3_POT_TLV_TYPE;
-    tlv->length = 46;
+    tlv->length = BLAKE3_POT_TLV_WR_LEN;
     tlv->timestamp = bpf_ktime_get_ns();
     tlv->token = bpf_get_prandom_u32();
     tlv->reserved = 0;
 
-    blake3_hash((const __u8 *)&tlv->timestamp, 14, tlv->data);
+    blake3_hash((const __u8 *)&tlv->timestamp, sizeof(tlv->timestamp) + sizeof(tlv->token) + sizeof(tlv->reserved), tlv->data);
 
-    __u32 offset = sizeof(struct ethhdr) + sizeof(struct ipv6hdr) + sizeof(struct srh);
-    if (bpf_skb_store_bytes(skb, (unsigned long)offset, tlv, BLAKE3_POT_TLV_LEN, 0) < 0)
+    if (BLAKE3_POT_TLV_LEN % 8 != 0) {
+        bpf_printk("[snode] warning: TLV length %d not multiple of 8 for SRH update", BLAKE3_POT_TLV_LEN);
+        return -1;
+    }
+
+    return 0;
+}
+
+static __always_inline int append_ip6_tlv_len(struct __sk_buff *skb)
+{
+    // ! We really need to refresh skb data pointers before to rewrite them
+    void *data = (void *)(long)skb->data;
+    void *end = (void *)(long)skb->data_end;
+
+    struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
+    if (ip6_hdr_cb(ipv6, end) < 0)
         return -1;
 
-    srh->hdrlen += BLAKE3_POT_TLV_LEN / 8;
-    srh->nexthdr = SRH_NEXT_HEADER;
+    inc_ip6_hdr_len(ipv6, BLAKE3_POT_TLV_LEN);
+    return 0;
+}
+
+static __always_inline int append_skb_tlv_len(struct __sk_buff *skb)
+{
+    // ! We really need to refresh skb data pointers before to rewrite them
+    void *data = (void *)(long)skb->data;
+    void *end = (void *)(long)skb->data_end;
+
+    struct srh *srh = SRH_HDR_PTR;
+    if (srh_hdr_cb(srh, end) < 0)
+        return -1;
+
+    srh->hdr_ext_len += BLAKE3_POT_TLV_EXT_LEN;
+    return 0;
+}
+
+static __always_inline int add_blake3_pot_tlv(struct __sk_buff *skb)
+{
+    void *data = (void *)(long)skb->data;
+    void *end = (void *)(long)skb->data_end;
+
+    struct ethhdr *eth = ETH_HDR_PTR;
+    struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
+    struct srh *srh = SRH_HDR_PTR;
+
+    struct blake3_pot_tlv tlv;
+    compute_blake3(&tlv);
+
+    if ((void *)data + tlv_hdr_offset(srh) + BLAKE3_POT_TLV_LEN > end) {
+        bpf_printk("[snode][-] not enough space in packet buffer for TLV");
+        return -1;
+    }
+
+    if (bpf_skb_store_bytes(skb, tlv_hdr_offset(srh), &tlv, BLAKE3_POT_TLV_LEN, 0) < 0) {
+        bpf_printk("[snode][-] bpf_skb_store_bytes failed to write the new TLV");
+        return -1;
+    }
+
+    append_ip6_tlv_len(skb);
+    append_skb_tlv_len(skb);
+
+    if (inc_skb_hdr_len(skb, BLAKE3_POT_TLV_LEN) < 0)
+        return -1;
 
     return 0;
 }
