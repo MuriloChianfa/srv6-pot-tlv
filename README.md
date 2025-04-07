@@ -1,41 +1,9 @@
 <h1 align="center">SRv6 Proof-of-Transit TLV</h1>
 <h3 align="center">Based on BLAKE3 Keyed-hash through eBPF XDP and TC</h3>
 
-This project demonstrates a mechanism for achieving **Proof-of-Transit (PoT)** in an **SRv6 (Segment Routing over IPv6)** network using **eBPF  (Extended Berkeley Packet Filter)** attached to Linux **TC (Traffic Control)** and **XDP (eXpress Data Path)** hooks.
-
-The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** at specific nodes in the path. This **TLV** contains metadata (like timestamps, tokens) and a cryptographic hash (using the fast **BLAKE3 Keyed-hash** algorithm) that allows downstream nodes to potentially verify the path taken by the packet.
-
-## This implementation focus on:
-
-1.  **TLV Insertion (`seg6_snode` - TC):** An eBPF program attached to the *egress* TC hook identifies SRv6 packets and injects the custom **BLAKE3 PoT TLV** right after the SRH.
-2.  **PoT Validation (`seg6_dnode` - XDP):** An eBPF program attached to the *ingress* XDP hook that performs a full PoT verification.
-
-## Structure of the new TLV
-
 ```bash
-            RFC 8754 - IPv6 Segment Routing Header (SRH)
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Next Header   |  Hdr Ext Len  | Routing Type  | Segments Left |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |  Last Entry   |     Flags     |              Tag              |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |                                                               |
- |            Segment List[0] (128-bit IPv6 address)             |
- |                                                               |
- |                                                               |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |                                                               |
- |                                                               |
- |                             ...                               |
- |                                                               |
- |                                                               |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |                                                               |
- |            Segment List[n] (128-bit IPv6 address)             |
- |                                                               |
- |                                                               |
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  |   Type (8b)   |  Length (8b)  |      Reserved/Flags (16b)     |
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -48,6 +16,15 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
  |                            ...                                |
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
+
+This project demonstrates a mechanism for achieving **Proof-of-Transit (PoT)** in an **SRv6 (Segment Routing over IPv6)** network using **eBPF  (Extended Berkeley Packet Filter)** attached to Linux **TC (Traffic Control)** and **XDP (eXpress Data Path)** hooks.
+
+The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** at specific nodes in the path. This **TLV** contains metadata (like timestamps, tokens) and a cryptographic hash (using the fast **BLAKE3 Keyed-hash** algorithm) that allows downstream nodes to potentially verify the path taken by the packet.
+
+## This implementation focus on:
+
+1.  **TLV Insertion (`seg6_snode` - TC):** An eBPF program attached to the *egress* TC hook identifies SRv6 packets and injects the custom **BLAKE3 PoT TLV** right after the SRH.
+2.  **PoT Validation (`seg6_dnode` - XDP):** An eBPF program attached to the *ingress* XDP hook that performs a full PoT verification.
 
 ## Prerequisites
 
@@ -109,8 +86,7 @@ tcpdump -pni any "ip6[6]==43" -vvv -x
 tshark -i any -p -f "ip6[6]==43" -V -x
 ```
 
-
-## Topology to test
+## Test topology
 
 <div align="center"><img src="topology/qemu-virtual-srv6.png" /></div>
 
