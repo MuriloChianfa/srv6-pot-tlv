@@ -39,9 +39,21 @@ static __always_inline void inc_ip6_hdr_len(struct ipv6hdr *ip6, __u32 len)
     ip6->payload_len = bpf_htons(bpf_ntohs(ip6->payload_len) + len);
 }
 
+static __always_inline void dec_ip6_hdr_len(struct ipv6hdr *ip6, __u32 len)
+{
+    ip6->payload_len = bpf_htons(bpf_ntohs(ip6->payload_len) - len);
+}
+
 static __always_inline int inc_skb_hdr_len(struct __sk_buff *skb, __u32 len)
 {
     if (bpf_skb_change_tail(skb, skb->len + len, 0) < 0)
+        return -1;
+    return 0;
+}
+
+static __always_inline int dec_skb_hdr_len(struct xdp_md *ctx, __u32 len)
+{
+    if (bpf_xdp_adjust_tail(ctx, -len) < 0)
         return -1;
     return 0;
 }

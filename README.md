@@ -50,12 +50,10 @@ make all
 
 ```bash
 # Load eBPF XDP
-bpftool prog load seg6_node.o /sys/fs/bpf/seg6_node type xdp
-bpftool net attach xdp pin /sys/fs/bpf/seg6_node dev ens5
+ip link set dev ens5 xdp obj seg6_pot_tlv.o sec xdp
 
 # Unload eBPF XDP
-bpftool net detach xdp dev ens5
-rm /sys/fs/bpf/seg6_node
+ip link set dev ens5 xdp off
 ```
 
 ---
@@ -63,7 +61,7 @@ rm /sys/fs/bpf/seg6_node
 ```bash
 # Load eBPF TC
 tc qdisc add dev ens5 clsact
-tc filter add dev ens5 egress bpf da obj seg6_node.o sec tc
+tc filter add dev ens5 egress bpf da obj seg6_pot_tlv.o sec tc
 
 # Unload eBPF TC
 tc qdisc delete dev ens5 clsact

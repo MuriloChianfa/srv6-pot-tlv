@@ -59,13 +59,6 @@ static __always_inline int srh_hdr_len(struct srh *srh)
     return (srh->hdr_ext_len + 1) * 8;
 }
 
-static __always_inline int seg6_first_sid(struct srh *srh)
-{
-    if (srh->segments_left != srh->last_entry)
-        return -1;
-    return 0;
-}
-
 static __always_inline int srh_hdr_cb(struct srh *srh, void *end)
 {
     if ((void *)srh + SRH_FIXED_HDR_LEN > end || (void *)srh + srh_hdr_len(srh) > end)
@@ -76,6 +69,20 @@ static __always_inline int srh_hdr_cb(struct srh *srh, void *end)
 static __always_inline int tlv_hdr_offset(struct srh *srh)
 {
     return ETH_HDR_LEN + IPV6_HDR_LEN + srh_hdr_len(srh);
+}
+
+static __always_inline int seg6_first_sid(struct srh *srh)
+{
+    if (srh->segments_left != srh->last_entry)
+        return -1;
+    return 0;
+}
+
+static __always_inline int seg6_last_sid(const struct srh *srh)
+{
+    if (srh->segments_left == 0)
+        return 0;
+    return -1;
 }
 
 #endif /* __SEG6_SRH_H */
