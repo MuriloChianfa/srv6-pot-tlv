@@ -4,7 +4,11 @@
 #include <linux/bpf.h>
 #include <linux/types.h>
 
+#include <linux/in6.h>
+#include <linux/icmpv6.h>
+
 #include "crypto/blake3.h"
+#include "csum/icmp6.h"
 #include "srh.h"
 #include "hdr.h"
 
@@ -260,6 +264,55 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
         return -1;
     }
 
+    data = (void *)(long)ctx->data;
+    end = (void *)(long)ctx->data_end;
+
+    eth = ETH_HDR_PTR;
+    if (eth_hdr_cb(eth, end) < 0)
+        return -1;
+
+    ipv6 = IPV6_HDR_PTR;
+    if (ip6_hdr_cb(ipv6, end) < 0)
+        return -1;
+
+    srh = SRH_HDR_PTR;
+    if (srh_hdr_cb(srh, end) < 0)
+        return -1;
+
+    struct ipv6hdr *ip6 = data + tlv_hdr_offset(srh) + ETH_HDR_LEN;
+    if (ip6_hdr_cb(ip6, end) < 0)
+        return -1;
+
+    struct icmp6hdr *icmp6 = data + tlv_hdr_offset(srh) + ETH_HDR_LEN + IPV6_HDR_LEN;
+    if ((void *)icmp6 + sizeof(struct icmp6hdr) > end) {
+        bpf_printk("[seg6_pot_tlv][-] ICMPv6 header out of bounds");
+        return -1;
+    }
+
+    __u64 len;
+    asm volatile("r1 = *(u32 *)(%[ctx] +0)\n\t"
+             "r2 = *(u32 *)(%[ctx] +4)\n\t"
+             "%[len] = r2\n\t"
+             "%[len] -= r1\n\t"
+             : [len]"=r"(len)
+             : [ctx]"r"(ctx)
+             : "r1", "r2");
+
+    __wsum csum = icmp_wsum_accumulate(data + tlv_hdr_offset(srh) + ETH_HDR_LEN, end, len);
+    csum += ((__u16)icmp6->icmp6_code) << 8 | (__u16)icmp6->icmp6_type;
+
+    struct ipv6_pseudo_header_t pseudo_header;
+    __builtin_memcpy(&pseudo_header.fields.src_ip, &ip6->saddr, sizeof(struct in6_addr));
+    __builtin_memcpy(&pseudo_header.fields.dst_ip, &ip6->daddr, sizeof(struct in6_addr));
+    pseudo_header.fields.top_level_length = bpf_htonl(sizeof(struct icmp6hdr) + (__u32)len);
+    __bpf_memzero(pseudo_header.fields.zero, sizeof(pseudo_header.fields.zero));
+    pseudo_header.fields.next_header = IPPROTO_ICMPV6;
+
+    #pragma unroll
+    for (__u32 i = 0; i < (int)(sizeof(pseudo_header.words) / sizeof(__u16)); i++)
+        csum += pseudo_header.words[i];
+
+    icmp6->icmp6_cksum = csum_fold(csum);
     return 0;
 }
 
