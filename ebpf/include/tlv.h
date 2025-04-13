@@ -194,10 +194,12 @@ static __always_inline int add_blake3_pot_tlv(struct __sk_buff *skb)
         bpf_printk("[seg6_pot_tlv][-] recalc_skb_ip6_tlv_len failed");
         return -1;
     }
+
     if (recalc_skb_tlv_len(skb) < 0) {
         bpf_printk("[seg6_pot_tlv][-] recalc_skb_tlv_len failed");
         return -1;
     }
+
     return 0;
 }
 
@@ -206,20 +208,58 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
     void *data = (void *)(long)ctx->data;
     void *end = (void *)(long)ctx->data_end;
 
+    __u32 original_len = end - data;
+
     struct ethhdr *eth = ETH_HDR_PTR;
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
-    if ((void *)data + tlv_hdr_offset(srh) > end) {
-        bpf_printk("[seg6_pot_tlv][-] invalid reduction size for packet buffer");
+    __u32 tlv_offset = tlv_hdr_offset(srh) - BLAKE3_POT_TLV_LEN;
+
+    if (data + tlv_offset + BLAKE3_POT_TLV_LEN > end) {
+        bpf_printk("[seg6_pot_tlv][-] packet too short to remove TLV?");
         return -1;
     }
 
-    recalc_ctx_ip6_tlv_len(ctx);
-    recalc_ctx_tlv_len(ctx);
-
-    if (dec_skb_hdr_len(ctx, BLAKE3_POT_TLV_LEN) < 0)
+    if (tlv_offset >= original_len) {
+        bpf_printk("[seg6_pot_tlv][-] Invalid offset to remove TLV");
         return -1;
+    }
+
+    __u32 len_to_move = original_len - (tlv_offset + BLAKE3_POT_TLV_LEN);
+    __u32 dst_offset = tlv_offset;
+    __u32 src_offset = tlv_offset + BLAKE3_POT_TLV_LEN;
+
+#pragma unroll
+    for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
+        if (i >= len_to_move) break;
+
+        void *src_byte_ptr = data + src_offset + i;
+        void *dst_byte_ptr = data + dst_offset + i;
+
+        if (src_byte_ptr + 1 > end || dst_byte_ptr + 1 > end) {
+            bpf_printk("[seg6_pot_tlv][-] Shift bounds error i=%u\n", i);
+            return -1;
+        }
+
+        *(volatile __u8 *)dst_byte_ptr = *(volatile __u8 *)src_byte_ptr;
+    }
+
+    if (dec_skb_hdr_len(ctx, (__u32)BLAKE3_POT_TLV_LEN) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] bpf_xdp_adjust_tail failed");
+        return -1;
+    }
+
+    if (recalc_ctx_ip6_tlv_len(ctx) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] recalc_ctx_ip6_tlv_len failed");
+        return -1;
+    }
+
+    if (recalc_ctx_tlv_len(ctx) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] recalc_ctx_tlv_len failed");
+        return -1;
+    }
+
     return 0;
 }
 
