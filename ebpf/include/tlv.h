@@ -8,7 +8,6 @@
 #include <linux/icmpv6.h>
 
 #include "crypto/blake3.h"
-#include "csum/icmp6.h"
 #include "srh.h"
 #include "hdr.h"
 
@@ -137,31 +136,33 @@ static __always_inline int add_blake3_pot_tlv(struct __sk_buff *skb)
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
-    __u32 offset = tlv_hdr_offset(srh);
-    __u32 original_len = skb->len;
-    __u32 len_to_move = BLAKE3_POT_TLV_LEN;
-
-    struct blake3_pot_tlv tlv;
+    __u64 len = skb->len;
+    __u64 offset = tlv_hdr_offset(srh);
 
     if (inc_skb_hdr_len(skb, BLAKE3_POT_TLV_LEN) < 0)
         return -1;
 
 #pragma clang loop unroll(full)
     for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
-        if (i >= len_to_move) break;
+        if (i >= BLAKE3_POT_TLV_LEN + HDR_ADDING_OFFSET) break;
 
-        __u32 current_byte_index = len_to_move - 1 - i;
-        __u64 read_abs_offset = offset + current_byte_index;
-        __u64 write_abs_offset = offset + BLAKE3_POT_TLV_LEN + current_byte_index;
-
-        if (data + read_abs_offset + 1 > data + original_len || data + write_abs_offset + 1 > end) {
-            bpf_printk("[seg6_pot_tlv] Shift bounds error loop_idx=%u\n", i);
-            return -1;
-        }
+        __u64 tail_ptr = len - 1 - i;
+        __u64 head_ptr = len - 1 - i + BLAKE3_POT_TLV_LEN;
 
         __u8 byte;
-        if (bpf_skb_load_bytes(skb, read_abs_offset, &byte, 1) < 0) return -1;
-        if (bpf_skb_store_bytes(skb, write_abs_offset, &byte, 1, 0) < 0) return -1;
+        if (bpf_skb_load_bytes(skb, tail_ptr, &byte, 1) < 0) return -1;
+        if (bpf_skb_store_bytes(skb, head_ptr, &byte, 1, 0) < 0) return -1;
+    }
+#pragma clang loop unroll(full)
+    for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
+        if (i >= BLAKE3_POT_TLV_LEN) break;
+
+        __u64 head_ptr = offset - 1 - i + BLAKE3_POT_TLV_LEN;
+        __u64 tail_ptr = offset - 1 - i + BLAKE3_POT_TLV_LEN + BLAKE3_POT_TLV_LEN;
+
+        __u8 byte;
+        if (bpf_skb_load_bytes(skb, head_ptr, &byte, 1) < 0) return -1;
+        if (bpf_skb_store_bytes(skb, tail_ptr, &byte, 1, 0) < 0) return -1;
     }
 
     data = (void *)(long)skb->data;
@@ -178,6 +179,8 @@ static __always_inline int add_blake3_pot_tlv(struct __sk_buff *skb)
     srh = SRH_HDR_PTR;
     if (srh_hdr_cb(srh, end) < 0)
         return -1;
+
+    struct blake3_pot_tlv tlv;
 
     if (compute_blake3(&tlv) < 0) {
         bpf_printk("[seg6_pot_tlv][-] compute_blake3 failed");
@@ -212,41 +215,37 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
     void *data = (void *)(long)ctx->data;
     void *end = (void *)(long)ctx->data_end;
 
-    __u32 original_len = end - data;
+    __u32 xdp_len = end - data;
 
     struct ethhdr *eth = ETH_HDR_PTR;
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
-    __u32 tlv_offset = tlv_hdr_offset(srh) - BLAKE3_POT_TLV_LEN;
+    __u32 offset = tlv_hdr_offset(srh) - BLAKE3_POT_TLV_LEN;
 
-    if (data + tlv_offset + BLAKE3_POT_TLV_LEN > end) {
+    if (data + offset + BLAKE3_POT_TLV_LEN > end) {
         bpf_printk("[seg6_pot_tlv][-] packet too short to remove TLV?");
         return -1;
     }
 
-    if (tlv_offset >= original_len) {
+    if (offset >= xdp_len) {
         bpf_printk("[seg6_pot_tlv][-] Invalid offset to remove TLV");
         return -1;
     }
 
-    __u32 len_to_move = original_len - (tlv_offset + BLAKE3_POT_TLV_LEN);
-    __u32 dst_offset = tlv_offset;
-    __u32 src_offset = tlv_offset + BLAKE3_POT_TLV_LEN;
-
 #pragma unroll
     for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
-        if (i >= len_to_move) break;
+        if (i >= xdp_len - (offset + BLAKE3_POT_TLV_LEN)) break;
 
-        void *src_byte_ptr = data + src_offset + i;
-        void *dst_byte_ptr = data + dst_offset + i;
+        void *head_ptr = data + offset + i + BLAKE3_POT_TLV_LEN;
+        void *tail_ptr = data + offset + i;
 
-        if (src_byte_ptr + 1 > end || dst_byte_ptr + 1 > end) {
-            bpf_printk("[seg6_pot_tlv][-] Shift bounds error i=%u\n", i);
+        if (head_ptr + 1 > end || tail_ptr + 1 > end) {
+            bpf_printk("[seg6_pot_tlv][-] Shift bounds error i=%u", i);
             return -1;
         }
 
-        *(volatile __u8 *)dst_byte_ptr = *(volatile __u8 *)src_byte_ptr;
+        *(volatile __u8 *)tail_ptr = *(volatile __u8 *)head_ptr;
     }
 
     if (dec_skb_hdr_len(ctx, (__u32)BLAKE3_POT_TLV_LEN) < 0) {
@@ -264,55 +263,6 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
         return -1;
     }
 
-    data = (void *)(long)ctx->data;
-    end = (void *)(long)ctx->data_end;
-
-    eth = ETH_HDR_PTR;
-    if (eth_hdr_cb(eth, end) < 0)
-        return -1;
-
-    ipv6 = IPV6_HDR_PTR;
-    if (ip6_hdr_cb(ipv6, end) < 0)
-        return -1;
-
-    srh = SRH_HDR_PTR;
-    if (srh_hdr_cb(srh, end) < 0)
-        return -1;
-
-    struct ipv6hdr *ip6 = data + tlv_hdr_offset(srh) + ETH_HDR_LEN;
-    if (ip6_hdr_cb(ip6, end) < 0)
-        return -1;
-
-    struct icmp6hdr *icmp6 = data + tlv_hdr_offset(srh) + ETH_HDR_LEN + IPV6_HDR_LEN;
-    if ((void *)icmp6 + sizeof(struct icmp6hdr) > end) {
-        bpf_printk("[seg6_pot_tlv][-] ICMPv6 header out of bounds");
-        return -1;
-    }
-
-    __u64 len;
-    asm volatile("r1 = *(u32 *)(%[ctx] +0)\n\t"
-             "r2 = *(u32 *)(%[ctx] +4)\n\t"
-             "%[len] = r2\n\t"
-             "%[len] -= r1\n\t"
-             : [len]"=r"(len)
-             : [ctx]"r"(ctx)
-             : "r1", "r2");
-
-    __wsum csum = icmp_wsum_accumulate(data + tlv_hdr_offset(srh) + ETH_HDR_LEN, end, len);
-    csum += ((__u16)icmp6->icmp6_code) << 8 | (__u16)icmp6->icmp6_type;
-
-    struct ipv6_pseudo_header_t pseudo_header;
-    __builtin_memcpy(&pseudo_header.fields.src_ip, &ip6->saddr, sizeof(struct in6_addr));
-    __builtin_memcpy(&pseudo_header.fields.dst_ip, &ip6->daddr, sizeof(struct in6_addr));
-    pseudo_header.fields.top_level_length = bpf_htonl(sizeof(struct icmp6hdr) + (__u32)len);
-    __bpf_memzero(pseudo_header.fields.zero, sizeof(pseudo_header.fields.zero));
-    pseudo_header.fields.next_header = IPPROTO_ICMPV6;
-
-    #pragma unroll
-    for (__u32 i = 0; i < (int)(sizeof(pseudo_header.words) / sizeof(__u16)); i++)
-        csum += pseudo_header.words[i];
-
-    icmp6->icmp6_cksum = csum_fold(csum);
     return 0;
 }
 

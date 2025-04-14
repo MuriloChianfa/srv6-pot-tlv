@@ -12,6 +12,7 @@
 #define SRH_FIXED_HDR_LEN sizeof(struct srh) // SRv6 minimal header length
 
 #define ETH_HDR_OFFSET 0
+#define HDR_ADDING_OFFSET 8
 #define IPV6_HDR_OFFSET ETH_HDR_LEN
 #define SRH_HDR_OFFSET ETH_HDR_LEN + IPV6_HDR_LEN
 #define TLV_MNML_HDR_OFFSET SRH_HDR_OFFSET + SRH_FIXED_HDR_LEN
