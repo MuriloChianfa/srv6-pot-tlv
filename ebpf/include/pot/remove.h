@@ -8,6 +8,7 @@
 #include <bpf/bpf_helpers.h>
 
 #include "tlv.h"
+#include "hdr.h"
 
 static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
 {

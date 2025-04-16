@@ -7,7 +7,9 @@
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 
+#include "crypto/keys.h"
 #include "tlv.h"
+#include "hdr.h"
 
 static __always_inline int add_blake3_pot_tlv(struct __sk_buff *skb)
 {
@@ -63,11 +65,13 @@ static __always_inline int add_blake3_pot_tlv(struct __sk_buff *skb)
         return -1;
 
     struct blake3_pot_tlv tlv;
-
-    if (compute_blake3(&tlv) < 0) {
-        bpf_printk("[seg6_pot_tlv][-] compute_blake3 failed");
+    if (fill_tlv(&tlv) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] fill_tlv failed");
         return -1;
     }
+
+    if (chain_keys(&tlv, srh, end) < 0)
+        return -1;
 
     if ((void *)data + offset + BLAKE3_POT_TLV_LEN > end) {
         bpf_printk("[seg6_pot_tlv][-] not enough space in packet buffer for TLV");

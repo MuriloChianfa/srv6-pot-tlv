@@ -51,9 +51,7 @@ Total TLV length = 48 bytes.
 #define BLAKE3_POT_TLV_EXT_LEN (BLAKE3_POT_TLV_LEN / HDR_BYTE_SIZE)
 #define BLAKE3_POT_TLV_TYPE 4 // Defines a new TLV type
 
-#define MAX_PAYLOAD_SHIFT_LEN 512
-
-static __always_inline int compute_blake3(struct blake3_pot_tlv *tlv)
+static __always_inline int fill_tlv(struct blake3_pot_tlv *tlv)
 {
     tlv->type = BLAKE3_POT_TLV_TYPE;
     tlv->length = BLAKE3_POT_TLV_WR_LEN;
@@ -61,15 +59,17 @@ static __always_inline int compute_blake3(struct blake3_pot_tlv *tlv)
     tlv->token = bpf_get_prandom_u32();
     tlv->reserved = 0;
 
-    // TODO: Lookup for the node secret key
-    blake3_hash((const __u8 *)&tlv->timestamp, sizeof(tlv->timestamp) + sizeof(tlv->token) + sizeof(tlv->reserved), tlv->data);
-
-    if (BLAKE3_POT_TLV_LEN % HDR_BYTE_SIZE != 0) {
-        bpf_printk("[seg6_pot_tlv] warning: TLV length %d not multiple of %d for SRH update", BLAKE3_POT_TLV_LEN, HDR_BYTE_SIZE);
+    if (sizeof(tlv) % HDR_BYTE_SIZE != 0) {
+        bpf_printk("[seg6_pot_tlv] warning: TLV length %d not multiple of %d for SRH update", sizeof(tlv), HDR_BYTE_SIZE);
         return -1;
     }
 
     return 0;
+}
+
+static __always_inline void compute_tlv(struct blake3_pot_tlv *tlv, const __u8 key[32])
+{
+    blake3_keyed_hash((const __u8 *)&tlv->timestamp, sizeof(tlv->timestamp) + sizeof(tlv->token) + sizeof(tlv->reserved), key, tlv->data);
 }
 
 #endif /* __BLAKE3_POT_TLV_H */

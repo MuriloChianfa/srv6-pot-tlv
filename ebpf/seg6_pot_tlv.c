@@ -15,9 +15,9 @@
 #include "include/hdr.h"
 #include "include/srh.h"
 
-#include "include/tlv/add.h"
-#include "include/tlv/remove.h"
-#include "include/tlv/update.h"
+#include "include/pot/add.h"
+#include "include/pot/remove.h"
+#include "include/pot/update.h"
 
 SEC("xdp")
 int seg6_pot_tlv_d(struct xdp_md *ctx)

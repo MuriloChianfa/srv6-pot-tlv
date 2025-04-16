@@ -7,12 +7,15 @@
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 
-#define ETH_HDR_LEN sizeof(struct ethhdr) // L3 header length
+#define IPV6_LEN sizeof(struct in6_addr) // IPv6 length
+#define ETH_HDR_LEN sizeof(struct ethhdr) // L2 header length
 #define IPV6_HDR_LEN sizeof(struct ipv6hdr) // IPv6 header length
 #define SRH_FIXED_HDR_LEN sizeof(struct srh) // SRv6 minimal header length
 
-#define ETH_HDR_OFFSET 0
 #define HDR_BYTE_SIZE 8
+#define MAX_PAYLOAD_SHIFT_LEN 512
+
+#define ETH_HDR_OFFSET 0
 #define HDR_ADDING_OFFSET HDR_BYTE_SIZE
 #define IPV6_HDR_OFFSET ETH_HDR_LEN
 #define SRH_HDR_OFFSET ETH_HDR_LEN + IPV6_HDR_LEN
