@@ -45,6 +45,7 @@
 
 # Kernel Module Compile Results
 *.mod*
+!cmd/go.mod
 *.cmd
 .tmp_versions/
 modules.order
@@ -63,3 +64,6 @@ go.work.sum
 # Project specific files
 topologies/qemu-virtual-srv6/**/*.img
 topologies/qemu-virtual-srv6/**/*.log
+build/
+output/
+libbpfgo/

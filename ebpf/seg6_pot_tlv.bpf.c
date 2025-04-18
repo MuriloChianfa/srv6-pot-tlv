@@ -117,4 +117,4 @@ int seg6_pot_tlv(struct __sk_buff *skb)
     return TC_ACT_OK;
 }
 
-char _license[] SEC("license") = "GPL";
+char _license[] SEC("license") = "Dual MIT/GPL";
