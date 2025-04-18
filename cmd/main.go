@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"text/tabwriter"
 
 	bpf "github.com/aquasecurity/libbpfgo"
 	"github.com/cilium/ebpf"
@@ -25,9 +26,24 @@ func main() {
 	loadIface := flag.String("load", "", "Install and Attach eBPF programs to <iface>")
 	sidStr := flag.String("sid", "", "IPv6 SID (e.g. 2001:db8::1)")
 	keyHex := flag.String("key", "", "32-byte key as 64 hex digits")
+	showKeys := flag.Bool("keys", false, "List all SID→key entries in the map")
+	delSID := flag.String("del", "", "Remove the map entry for the given IPv6 SID")
 	flag.Parse()
 
 	switch {
+	case *delSID != "":
+		if err := deleteEntry(*delSID); err != nil {
+			log.Fatalf("[-] delete failed: %v", err)
+		}
+		fmt.Printf("[+] Removed SID %s from %s\n", *delSID, defaultMapPath)
+		return
+
+	case *showKeys:
+		if err := listKeys(); err != nil {
+			log.Fatalf("[-] failed to list keys: %v", err)
+		}
+		return
+
 	case *loadIface != "":
 		if err := loadPrograms(*loadIface); err != nil {
 			log.Fatalf("[-] load failed: %v", err)
@@ -46,6 +62,51 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+}
+
+func deleteEntry(sidStr string) error {
+	ip := net.ParseIP(sidStr)
+	if ip == nil || ip.To16() == nil {
+		return fmt.Errorf("invalid IPv6 SID: %q", sidStr)
+	}
+	key := ip.To16()
+
+	m, err := ebpf.LoadPinnedMap(defaultMapPath, &ebpf.LoadPinOptions{})
+	if err != nil {
+		return fmt.Errorf("open pinned map: %w", err)
+	}
+	defer m.Close()
+
+	if err := m.Delete(key); err != nil {
+		return fmt.Errorf("map.Delete: %w", err)
+	}
+
+	return nil
+}
+
+func listKeys() error {
+	m, err := ebpf.LoadPinnedMap(defaultMapPath, &ebpf.LoadPinOptions{})
+	if err != nil {
+		return fmt.Errorf("open pinned map: %w", err)
+	}
+	defer m.Close()
+
+	var sid [16]byte
+	var key [32]byte
+	it := m.Iterate()
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "SID\tKEY")
+
+	for it.Next(&sid, &key) {
+		ip := net.IP(sid[:])
+		fmt.Fprintf(w, "%s\t%s\n", ip.String(), hex.EncodeToString(key[:]))
+	}
+	if err := it.Err(); err != nil {
+		return fmt.Errorf("iterate map: %w", err)
+	}
+
+	return w.Flush()
 }
 
 func updateMap(sidStr, keyHex string) error {
@@ -76,7 +137,6 @@ func updateMap(sidStr, keyHex string) error {
 }
 
 func loadPrograms(iface string) error {
-	// load & parse our embedded BPF object
 	module, err := bpf.NewModuleFromBuffer(bpfObj, "seg6_pot_tlv")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "BPF new module: %v\n", err)
@@ -99,7 +159,6 @@ func loadPrograms(iface string) error {
 	}
 	defer xdpLink.Destroy()
 
-	// initialize a TC hook, point it at our interface, and set egress
 	hook := module.TcHookInit()
 	defer hook.Destroy()
 
@@ -121,13 +180,11 @@ func loadPrograms(iface string) error {
 		os.Exit(1)
 	}
 
-	// prepare attach options
 	var opts bpf.TcOpts
 	opts.ProgFd = int(tcProg.GetFd())
 	opts.Handle = 1
 	opts.Priority = 1
 
-	// attach it
 	if err := hook.Attach(&opts); err != nil {
 		fmt.Fprintf(os.Stderr, "tc attach: %v\n", err)
 		os.Exit(1)
@@ -136,7 +193,6 @@ func loadPrograms(iface string) error {
 
 	fmt.Printf("TC egress program attached on %s — press Ctrl-C to exit\n", iface)
 
-	// wait for Ctrl‑C
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
