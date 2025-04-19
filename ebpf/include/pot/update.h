@@ -9,7 +9,7 @@
 
 #include "tlv.h"
 
-static __always_inline int update_blake3_pot_tlv(struct __sk_buff *skb)
+static __always_inline int update_pot_tlv(struct __sk_buff *skb)
 {
     void *data = (void *)(long)skb->data;
     void *end = (void *)(long)skb->data_end;
@@ -18,14 +18,14 @@ static __always_inline int update_blake3_pot_tlv(struct __sk_buff *skb)
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
-    if ((void *)data + tlv_hdr_offset(srh) + BLAKE3_POT_TLV_LEN > end) {
+    if ((void *)data + tlv_hdr_offset(srh) + POT_TLV_WIRE_LEN > end) {
         bpf_printk("[seg6_pot_tlv][-] not enough space in packet buffer for TLV");
         return -1;
     }
 
     // TODO: compute the new hash chaining with the past one
-    struct blake3_pot_tlv *tlv = SRH_HDR_PTR + tlv_hdr_offset(srh);
-    bpf_printk("[seg6_pot_tlv] PoT TLV BLAKE3 digest: %x", tlv->data);
+    // struct pot_tlv *tlv = SRH_HDR_PTR + tlv_hdr_offset(srh);
+    // bpf_printk("[seg6_pot_tlv] PoT TLV BLAKE3 digest: %x", tlv->data);
 
     return 0;
 }

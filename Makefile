@@ -11,7 +11,10 @@ BUILD_DIR := cmd/build
 EBPF_TARGETS := seg6_pot_tlv
 
 CLANG := clang
-CLANG_FLAGS := -O2 -g -Wextra -target bpf -I$(SRC_DIR)/$(INCLUDE_DIR) -I$(LIBBPF_INCLUDE_DIR) -I/usr/include
+CLANG_FLAGS := -O2 -g -Wextra -target bpf
+CLANG_FLAGS += -I$(SRC_DIR)/$(INCLUDE_DIR) \
+	-I$(LIBBPF_INCLUDE_DIR) -I/usr/include
+CLANG_FLAGS += -mllvm -bpf-stack-size=2048
 
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/g')
 CLANG_FLAGS += -D__TARGET_ARCH_$(ARCH)

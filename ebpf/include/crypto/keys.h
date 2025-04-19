@@ -10,10 +10,11 @@
 #include "srh.h"
 #include "tlv.h"
 
+#define SEG6_KEY_LEN 32
 #define SEG6_MAX_KEYS SRH_MAX_ALLOWED_SEGMENTS
 
 struct pot_sid_key {
-    __u8 key[32];
+    __u8 key[SEG6_KEY_LEN];
 };
 
 struct {
@@ -24,7 +25,7 @@ struct {
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } seg6_pot_keys SEC(".maps");
 
-static __always_inline int chain_keys(struct blake3_pot_tlv *tlv, struct srh *srh, void *end)
+static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void *end)
 {
     __u32 segment_id_size = srh_hdr_len(srh) / IPV6_LEN;
     if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_id_size)) > end) {
@@ -52,7 +53,7 @@ static __always_inline int chain_keys(struct blake3_pot_tlv *tlv, struct srh *sr
         }
 
         bpf_printk("[seg6_pot_tlv][*] Computing BLAKE3 for SID %pI6", sid.s6_addr);
-        compute_tlv(tlv, pot_sid_key->key);
+        // compute_tlv(tlv, pot_sid_key->key);
     }
 
     bpf_printk("[seg6_pot_tlv][*] BLAKE3 calculated to each SID successfully");

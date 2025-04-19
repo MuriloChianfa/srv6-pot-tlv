@@ -9,10 +9,10 @@
 
 #include "hdr.h"
 
-#define HDR_EXT_LEN 0 // HDR Routing header extenstion length
+#define HDR_EXT_LEN 0 // HDR routing header extenstion length
 #define SRH_NEXT_HEADER 43 // SRH next header value per RFC 8754
-#define SRH_ROUTING_HEADER_TYPE 4 // SRv6 Routing type flag
-#define SRH_MAX_ALLOWED_SEGMENTS 10 // SRv6 Max allowed segments
+#define SRH_ROUTING_HEADER_TYPE 4 // SRv6 routing type flag
+#define SRH_MAX_ALLOWED_SEGMENTS 8 // SRv6 segment hops limit
 
 /*
             RFC 8754 - IPv6 Segment Routing Header (SRH)

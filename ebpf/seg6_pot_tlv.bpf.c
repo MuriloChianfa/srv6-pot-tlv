@@ -49,12 +49,12 @@ int seg6_pot_tlv_d(struct xdp_md *ctx)
 
             // Endpoint Node
             if (seg6_last_sid(srh) == 0) {
-                if (remove_blake3_pot_tlv(ctx) != 0) {
-                    bpf_printk("[seg6_pot_tlv][-] Failed to remove TLV");
+                if (remove_pot_tlv(ctx) != 0) {
+                    bpf_printk("[seg6_pot_tlv][-] Failed to remove TLV\n");
                     return XDP_DROP;
                 }
 
-                bpf_printk("[seg6_pot_tlv][+] TLV removed successfully");
+                bpf_printk("[seg6_pot_tlv][+] TLV removed successfully\n");
                 return XDP_PASS;
             }
         default:
@@ -94,21 +94,21 @@ int seg6_pot_tlv(struct __sk_buff *skb)
 
             // SRouting Node
             if (seg6_first_sid(srh) == 0) {
-                if (add_blake3_pot_tlv(skb) != 0) {
-                    bpf_printk("[seg6_pot_tlv][-] Failed to add TLV");
+                if (add_pot_tlv(skb) != 0) {
+                    bpf_printk("[seg6_pot_tlv][-] Failed to add TLV\n");
                     return TC_ACT_SHOT;
                 }
 
-                bpf_printk("[seg6_pot_tlv][+] TLV added successfully");
+                bpf_printk("[seg6_pot_tlv][+] TLV added successfully\n");
             }
             // Transit Nodes
             else {
-                if (update_blake3_pot_tlv(skb) != 0) {
-                    bpf_printk("[seg6_pot_tlv][-] Failed to update TLV");
+                if (update_pot_tlv(skb) != 0) {
+                    bpf_printk("[seg6_pot_tlv][-] Failed to update TLV\n");
                     return TC_ACT_SHOT;
                 }
 
-                bpf_printk("[seg6_pot_tlv][+] TLV updated successfully");
+                bpf_printk("[seg6_pot_tlv][+] TLV updated successfully\n");
             }
         default:
             return TC_ACT_OK;
