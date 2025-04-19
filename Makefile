@@ -27,19 +27,17 @@ CGO_EXTLDFLAGS = '-w -extldflags "-static"'
 
 $(shell mkdir -p $(shell pwd)/$(BUILD_DIR))
 
-all: $(OUTPUT_BIN)-static
+all: $(BUILD_DIR)/$(OUTPUT_BIN)
 
 $(BUILD_DIR)/$(EBPF_TARGETS).o: $(SRC_DIR)/$(EBPF_TARGETS).bpf.c $(wildcard $(SRC_DIR)/$(INCLUDE_DIR)/*/*.h) $(wildcard $(SRC_DIR)/$(INCLUDE_DIR)/*.h)
 	$(CLANG) $(CLANG_FLAGS) -c $< -o $@
 
-prepare-libbpf-static:
-	@echo "Building static libbpf dependency in $(BASEDIR)..."
-	git clone git@github.com:aquasecurity/libbpfgo.git; echo "libbpfgo updated"
+$(LIBBPF_OBJ):
+	git clone git@github.com:aquasecurity/libbpfgo.git 2>/dev/null; echo "libbpfgo updated"
 	cd libbpfgo && make libbpfgo-static
 	rm -rf output
 
-$(OUTPUT_BIN)-static: $(BUILD_DIR)/$(EBPF_TARGETS).o prepare-libbpf-static
-	@echo "Building Go application statically..."
+$(BUILD_DIR)/$(OUTPUT_BIN): $(BUILD_DIR)/$(EBPF_TARGETS).o $(LIBBPF_OBJ)
 	cd cmd && CGO_ENABLED=$(CGO_ENABLED) \
 		CGO_CFLAGS=$(CGO_CFLAGS) \
 		CGO_LDFLAGS="-L$(PWD)/libbpfgo/output/libbpf -l:libbpf.a -lelf -lzstd -pthread -lz" \
@@ -49,7 +47,6 @@ $(OUTPUT_BIN)-static: $(BUILD_DIR)/$(EBPF_TARGETS).o prepare-libbpf-static
 		-o build/$(OUTPUT_BIN) .
 
 clean:
-	@echo "Cleaning build artifacts..."
-	rm -rf $(BUILD_DIR) libbpfgo $(OUTPUT_BIN)-static
+	rm -rf $(BUILD_DIR) libbpfgo $(OUTPUT_BIN)
 
-.PHONY: all clean prepare-libbpf-static $(OUTPUT_BIN)-static
+.PHONY: all clean

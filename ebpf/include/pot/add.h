@@ -70,8 +70,10 @@ static __always_inline int add_blake3_pot_tlv(struct __sk_buff *skb)
         return -1;
     }
 
-    if (chain_keys(&tlv, srh, end) < 0)
+    if (chain_keys(&tlv, srh, end) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] chain_keys failed");
         return -1;
+    }
 
     if ((void *)data + offset + BLAKE3_POT_TLV_LEN > end) {
         bpf_printk("[seg6_pot_tlv][-] not enough space in packet buffer for TLV");

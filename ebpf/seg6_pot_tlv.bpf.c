@@ -54,7 +54,7 @@ int seg6_pot_tlv_d(struct xdp_md *ctx)
                     return XDP_DROP;
                 }
 
-                bpf_printk("[seg6_pot_tlv] TLV removed successfully");
+                bpf_printk("[seg6_pot_tlv][+] TLV removed successfully");
                 return XDP_PASS;
             }
         default:
@@ -99,7 +99,7 @@ int seg6_pot_tlv(struct __sk_buff *skb)
                     return TC_ACT_SHOT;
                 }
 
-                bpf_printk("[seg6_pot_tlv] TLV added successfully");
+                bpf_printk("[seg6_pot_tlv][+] TLV added successfully");
             }
             // Transit Nodes
             else {
@@ -108,7 +108,7 @@ int seg6_pot_tlv(struct __sk_buff *skb)
                     return TC_ACT_SHOT;
                 }
 
-                bpf_printk("[seg6_pot_tlv] TLV updated successfully");
+                bpf_printk("[seg6_pot_tlv][+] TLV updated successfully");
             }
         default:
             return TC_ACT_OK;

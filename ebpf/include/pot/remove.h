@@ -21,6 +21,39 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
+    if (recalc_ctx_tlv_len(ctx, BLAKE3_POT_TLV_EXT_LEN) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] recalc_ctx_tlv_len failed");
+        return -1;
+    }
+
+    struct blake3_pot_tlv *tlv = SRH_HDR_PTR + srh_hdr_len(srh);
+
+    if (SRH_HDR_PTR + srh_hdr_len(srh) + BLAKE3_POT_TLV_LEN > end) {
+        bpf_printk("[seg6_pot_tlv][-] invalid offset on packet buffer for TLV");
+        return -1;
+    }
+
+    struct blake3_pot_tlv recursive_tlv;
+    if (dup_tlv_nonce(tlv, &recursive_tlv) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] dup_tlv_nonce failed");
+        return -1;
+    }
+
+    bpf_printk("[seg6_pot_tlv][*] Recursive recalculation of PoT digest");
+    if (chain_keys(&recursive_tlv, srh, end) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] chain_keys failed");
+        return -1;
+    }
+
+    bpf_printk("[seg6_pot_tlv][*] Comparing TLV digests");
+    if (compare_pot_digest(tlv, &recursive_tlv) != 0) {
+        dump_pot_digest(tlv, &recursive_tlv);
+        bpf_printk("[seg6_pot_tlv][-] PoT TLV wrong, possible path mismatch!");
+        return -1;
+    }
+
+    bpf_printk("[seg6_pot_tlv][*] TLV successfully validated");
+
     __u32 offset = tlv_hdr_offset(srh) - BLAKE3_POT_TLV_LEN;
 
     if (data + offset + BLAKE3_POT_TLV_LEN > end) {
@@ -55,11 +88,6 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
 
     if (recalc_ctx_ip6_tlv_len(ctx, BLAKE3_POT_TLV_LEN) < 0) {
         bpf_printk("[seg6_pot_tlv][-] recalc_ctx_ip6_tlv_len failed");
-        return -1;
-    }
-
-    if (recalc_ctx_tlv_len(ctx, BLAKE3_POT_TLV_EXT_LEN) < 0) {
-        bpf_printk("[seg6_pot_tlv][-] recalc_ctx_tlv_len failed");
         return -1;
     }
 

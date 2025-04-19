@@ -45,15 +45,17 @@ static __always_inline int chain_keys(struct blake3_pot_tlv *tlv, struct srh *sr
         struct in6_addr sid;
         __builtin_memcpy(&sid, (__u8 *)srh + segment_offset, IPV6_LEN);
 
-        struct pot_sid_key *pot_sid_key = bpf_map_lookup_elem(&seg6_pot_keys, &sid);
+        struct pot_sid_key *pot_sid_key = bpf_map_lookup_elem(&seg6_pot_keys, &sid.s6_addr);
         if (!pot_sid_key) {
             bpf_printk("[seg6_pot_tlv][-] Cannot retrieve key for SID %pI6", sid.s6_addr);
             return -1;
         }
 
+        bpf_printk("[seg6_pot_tlv][*] Computing BLAKE3 for SID %pI6", sid.s6_addr);
         compute_tlv(tlv, pot_sid_key->key);
     }
 
+    bpf_printk("[seg6_pot_tlv][*] BLAKE3 calculated to each SID successfully");
     return 0;
 }
 
