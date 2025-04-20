@@ -10,7 +10,7 @@
 #include "tlv.h"
 #include "hdr.h"
 
-static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
+static __always_inline int remove_pot_tlv(struct xdp_md *ctx)
 {
     void *data = (void *)(long)ctx->data;
     void *end = (void *)(long)ctx->data_end;
@@ -21,23 +21,20 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
-    if (recalc_ctx_tlv_len(ctx, BLAKE3_POT_TLV_EXT_LEN) < 0) {
+    if (recalc_ctx_tlv_len(ctx, POT_TLV_EXT_LEN) < 0) {
         bpf_printk("[seg6_pot_tlv][-] recalc_ctx_tlv_len failed");
         return -1;
     }
 
-    struct blake3_pot_tlv *tlv = SRH_HDR_PTR + srh_hdr_len(srh);
+    struct pot_tlv *tlv = SRH_HDR_PTR + srh_hdr_len(srh);
 
-    if (SRH_HDR_PTR + srh_hdr_len(srh) + BLAKE3_POT_TLV_LEN > end) {
+    if (SRH_HDR_PTR + srh_hdr_len(srh) + POT_TLV_WIRE_LEN > end) {
         bpf_printk("[seg6_pot_tlv][-] invalid offset on packet buffer for TLV");
         return -1;
     }
 
-    struct blake3_pot_tlv recursive_tlv;
-    if (dup_tlv_nonce(tlv, &recursive_tlv) < 0) {
-        bpf_printk("[seg6_pot_tlv][-] dup_tlv_nonce failed");
-        return -1;
-    }
+    struct pot_tlv recursive_tlv;
+    dup_tlv_nonce(tlv, &recursive_tlv);
 
     bpf_printk("[seg6_pot_tlv][*] Recursive recalculation of PoT digest");
     if (chain_keys(&recursive_tlv, srh, end) < 0) {
@@ -54,9 +51,8 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
 
     bpf_printk("[seg6_pot_tlv][*] TLV successfully validated");
 
-    __u32 offset = tlv_hdr_offset(srh) - BLAKE3_POT_TLV_LEN;
-
-    if (data + offset + BLAKE3_POT_TLV_LEN > end) {
+    __u32 offset = tlv_hdr_offset(srh);
+    if (data + offset + POT_TLV_WIRE_LEN > end) {
         bpf_printk("[seg6_pot_tlv][-] packet too short to remove TLV?");
         return -1;
     }
@@ -66,27 +62,29 @@ static __always_inline int remove_blake3_pot_tlv(struct xdp_md *ctx)
         return -1;
     }
 
-#pragma unroll
-    for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
-        if (i >= xdp_len - (offset + BLAKE3_POT_TLV_LEN)) break;
+    __u32 max_shift = xdp_len - (offset + POT_TLV_WIRE_LEN);
+        if (max_shift > MAX_PAYLOAD_SHIFT_LEN)
+            max_shift = MAX_PAYLOAD_SHIFT_LEN;
 
-        void *head_ptr = data + offset + i + BLAKE3_POT_TLV_LEN;
+#pragma clang loop unroll(disable)
+    for (__u32 i = 0; i < max_shift; ++i) {
         void *tail_ptr = data + offset + i;
+        void *head_ptr = tail_ptr + POT_TLV_WIRE_LEN;
 
-        if (head_ptr + 1 > end || tail_ptr + 1 > end) {
+        if (head_ptr + 1 > end) {
             bpf_printk("[seg6_pot_tlv][-] Shift bounds error i=%u", i);
-            return -1;
+            break;
         }
 
         *(volatile __u8 *)tail_ptr = *(volatile __u8 *)head_ptr;
     }
 
-    if (dec_skb_hdr_len(ctx, (__u32)BLAKE3_POT_TLV_LEN) < 0) {
+    if (dec_skb_hdr_len(ctx, (__u32)POT_TLV_WIRE_LEN) < 0) {
         bpf_printk("[seg6_pot_tlv][-] bpf_xdp_adjust_tail failed");
         return -1;
     }
 
-    if (recalc_ctx_ip6_tlv_len(ctx, BLAKE3_POT_TLV_LEN) < 0) {
+    if (recalc_ctx_ip6_tlv_len(ctx, POT_TLV_WIRE_LEN) < 0) {
         bpf_printk("[seg6_pot_tlv][-] recalc_ctx_ip6_tlv_len failed");
         return -1;
     }

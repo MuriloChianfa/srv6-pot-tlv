@@ -1,0 +1,2 @@
+Makefile linguist-vendored=true
+topology/* linguist-vendored=true

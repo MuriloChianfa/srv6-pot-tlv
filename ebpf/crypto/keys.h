@@ -10,10 +10,11 @@
 #include "srh.h"
 #include "tlv.h"
 
+#define SEG6_KEY_LEN 32
 #define SEG6_MAX_KEYS SRH_MAX_ALLOWED_SEGMENTS
 
 struct pot_sid_key {
-    __u8 key[32];
+    __u8 key[SEG6_KEY_LEN];
 };
 
 struct {
@@ -24,7 +25,7 @@ struct {
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } seg6_pot_keys SEC(".maps");
 
-static __always_inline int chain_keys(struct blake3_pot_tlv *tlv, struct srh *srh, void *end)
+static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void *end)
 {
     __u32 segment_id_size = srh_hdr_len(srh) / IPV6_LEN;
     if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_id_size)) > end) {
@@ -52,10 +53,45 @@ static __always_inline int chain_keys(struct blake3_pot_tlv *tlv, struct srh *sr
         }
 
         bpf_printk("[seg6_pot_tlv][*] Computing BLAKE3 for SID %pI6", sid.s6_addr);
-        compute_tlv(tlv, pot_sid_key->key);
+        compute_tlv(tlv, pot_sid_key->key, tlv->root);
     }
 
     bpf_printk("[seg6_pot_tlv][*] BLAKE3 calculated to each SID successfully");
+    return 0;
+}
+
+static __always_inline int compute_witness_once(struct pot_tlv *tlv, struct srh *srh, void *end)
+{
+    __u32 segment_id_size = srh_hdr_len(srh) / IPV6_LEN;
+    if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_id_size)) > end) {
+        bpf_printk("[seg6_pot_tlv][-] SRH segments out-of-bounds");
+        return -1;
+    }
+
+    __u32 idx = srh->last_entry - srh->segments_left;
+    idx = srh->last_entry - idx;
+    if (idx < 0 || idx > segment_id_size)
+        return -1;
+
+    __u32 segment_offset = SRH_FIXED_HDR_LEN + (IPV6_LEN * idx);
+    if ((void *)((__u8 *)srh + segment_offset + IPV6_LEN) > end) {
+        bpf_printk("[seg6_pot_tlv][-] SID %u extends beyond packet", idx);
+        return -1;
+    }
+
+    struct in6_addr sid;
+    __builtin_memcpy(&sid, (__u8 *)srh + segment_offset, IPV6_LEN);
+
+    struct pot_sid_key *pot_sid_key = bpf_map_lookup_elem(&seg6_pot_keys, &sid.s6_addr);
+    if (!pot_sid_key) {
+        bpf_printk("[seg6_pot_tlv][-] Cannot retrieve key for SID %pI6", sid.s6_addr);
+        return -1;
+    }
+
+    bpf_printk("[seg6_pot_tlv][*] Computing BLAKE3 for SID %pI6", sid.s6_addr);
+    compute_tlv(tlv, pot_sid_key->key, tlv->witness);
+
+    bpf_printk("[seg6_pot_tlv][*] BLAKE3 calculated for witness");
     return 0;
 }
 

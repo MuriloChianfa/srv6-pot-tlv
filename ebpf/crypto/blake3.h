@@ -1,5 +1,5 @@
-#ifndef __BLAKE3_H
-#define __BLAKE3_H
+#ifndef __SEG6_BLAKE3_H
+#define __SEG6_BLAKE3_H
 
 #include <linux/types.h>
 
@@ -8,6 +8,8 @@
 #define BLAKE3_CHUNK_END    (1 << 1)
 #define BLAKE3_ROOT         (1 << 3)
 #define BLAKE3_KEYED_HASH   (1 << 4)
+
+#define BLAKE3_DIGEST_LEN 32
 
 /* Rotate right (32-bit) */
 #define ROTR32(x, r) (((x) >> (r)) | ((x) << (32 - (r))))
@@ -31,7 +33,7 @@ static __always_inline void gfunction(__u32 v[16], int a, int b, int c, int d, _
     v[b] = ROTR32(v[b] ^ v[c], 7);
 }
 
-static __always_inline void blake3_keyed_hash(const __u8 *msg, __u32 len, const __u8 key[32], __u8 out[32])
+static __always_inline void blake3_keyed_hash(const __u8 *msg, __u32 len, const __u8 key[32], __u8 out[BLAKE3_DIGEST_LEN])
 {
     __u32 v[16];
 
@@ -104,4 +106,4 @@ static __always_inline void blake3_keyed_hash(const __u8 *msg, __u32 len, const 
     }
 }
 
-#endif /* __BLAKE3_H */
+#endif /* __SEG6_BLAKE3_H */
