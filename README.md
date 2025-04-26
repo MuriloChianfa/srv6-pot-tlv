@@ -4,113 +4,104 @@
 ```bash
                  0                   1                   2                   3
                  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                |   Type (8b)   |  Length (8b)  |      Reserved/Flags (16b)     |
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                |                          Token (32b)                          |
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                |                        Timestamp (64b)                        |
-                |                            ...                                |
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                |                        (BLAKE3 256b)                          |
-                |                            ...                                |
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+                |   Type (8b)   |  Length (8b)  |      Reserved/Flags (16b)      |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+                |                          Nonce (96b)                           |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+                |                        Witness (256b)                          |
+                |                            ...                                 |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+                |                         Root (256b)                            |
+                |                            ...                                 |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 ```
 
 This project demonstrates a mechanism for achieving **Proof-of-Transit (PoT)** in an **SRv6 (Segment Routing over IPv6)** network using **eBPF  (Extended Berkeley Packet Filter)** attached to Linux **TC (Traffic Control)** and **XDP (eXpress Data Path)** hooks.
 
-The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** at specific nodes in the path. This **TLV** contains metadata (like timestamps, tokens) and a cryptographic hash (using the fast **BLAKE3 Keyed-hash** algorithm) that allows downstream nodes to potentially verify the path taken by the packet.
+The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** at specific nodes in the path. This **TLV** contains metadata (random nonce) and two cryptographic hashs (computed through the fast **BLAKE3 Keyed-hash** algorithm) that allows downstream nodes to verify the path taken by the packet.
 
-## This implementation focus on:
+## Getting Started
 
-1.  **TLV Insertion (`seg6_snode` - TC):** An eBPF program attached to the *egress* TC hook identifies SRv6 packets and injects the custom **BLAKE3 PoT TLV** right after the SRH.
-2.  **PoT Validation (`seg6_dnode` - XDP):** An eBPF program attached to the *ingress* XDP hook that performs a full PoT verification.
+<details>
+  <summary style="font-size: 16px;"><strong>Compiling the BTF bytecode and the CLI tool</strong></summary>
 
-## Prerequisites
+  #### Requirements
 
-* **Linux Kernel:** Version supporting eBPF, TC BPF, XDP, and SRv6.
-* **libbpf-dev:** Development headers for libbpf, same as the Kernel.
-* **iproute2:** For managing TC filters and XDP programs.
-* **clang/llvm:** For compiling C code to eBPF bytecode.
+  * **Linux Kernel:** Version supporting eBPF, TC BPF, XDP, and SRv6.
+  * **libbpf-dev:** Development headers for libbpf, same as the Kernel.
+  * **iproute2:** For managing TC filters and XDP programs.
+  * **clang/llvm:** For compiling C code to eBPF bytecode.
 
-## How to compile
+  #### Compiling
 
-```bash
-# Install Linux Kernel headers and tools
-apt install linux-image-6.11.0-19-generic linux-headers-6.11.0-19-generic linux-tools-6.11.0-19-generic
+  ```bash
+  # Install Linux Kernel headers and tools
+  apt install linux-image-$(uname -r) linux-headers-$(uname -r) linux-tools-$(uname -r)
 
-# Install required libraries
-apt install clang llvm libbpf-dev libelf-dev make
+  # Install required libraries
+  apt install clang llvm libbpf-dev libelf-dev make
 
-# Compile the project
-make all
-```
+  # Compile the project
+  make all
+  ```
+</details>
+<details open>
+  <summary style="font-size: 16px;"><strong>Usage options and key management</strong></summary>
 
-## Attaching eBPF bytecode
+  ```bash
+  Usage:
+    seg6-pot-tlv --load <iface>
+        Loads & attaches the eBPF XDP and TC programs to <iface> and pins the maps.
 
-```bash
-# Load eBPF XDP
-ip link set dev ens5 xdp obj seg6_pot_tlv.o sec xdp
+    seg6-pot-tlv --sid <sid> --key <key>
+        Updates the pinned map with <sid> (IPv6) with the related <key> (max 32B).
 
-# Unload eBPF XDP
-ip link set dev ens5 xdp off
-```
+    seg6-pot-tlv --keys
+        Shows all the keys pinned on the key map with their related SID.
 
----
+  Examples:
+    sudo ./seg6-pot-tlv --load ens5
+    sudo ./seg6-pot-tlv --sid 2001:db8:ff:1::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee11
+  ```
+</details>
+<details>
+  <summary style="font-size: 16px;"><strong>Debugging TLV logs and operations</strong></summary>
 
-```bash
-# Load eBPF TC
-tc qdisc add dev ens5 clsact
-tc filter add dev ens5 egress bpf da obj seg6_pot_tlv.o sec tc
+  ```bash
+  # Monitor eBPF logs
+  bpftool prog trace
 
-# Unload eBPF TC
-tc qdisc delete dev ens5 clsact
-```
+  # Monitor SRv6 packets
+  tcpdump -pni any "ip6[6]==43" -vvv -x
+  tshark -i any -p -f "ip6[6]==43" -V -x
+  ```
+</details>
+<details>
+  <summary style="font-size: 16px;"><strong>Setting-up DEMO scenario for tests</strong></summary>
 
-## Debugging
+  - [topology/README.md](topology/README.md)
+</details>
 
-```bash
-# Monitor eBPF logs
-bpftool prog trace
-
-# Monitor SRv6 packets
-tcpdump -pni any "ip6[6]==43" -vvv -x
-tshark -i any -p -f "ip6[6]==43" -V -x
-```
-
-## Test topology
-
-<div align="center"><img src="topology/qemu-virtual-srv6.png" /></div>
-
-```bash
-# Install required tools to emulate the VMs
-apt install wget qemu-system ansible sshpass bridge-utils
-
-# Download the base cloud-init image
-cd topology
-wget https://cloud-images.ubuntu.com/releases/noble/release-20240423/ubuntu-24.04-server-cloudimg-amd64.img -O base.img
-
-# Run the topology
-./topology.sh
-
-# Configure all nodes
-ansible-playbook -i inventory playbook.yml
-```
-
-## Troubleshooting
+## Warning Notice
 
 > [!IMPORTANT]
 >
-> - **eBPF Program Compilation Errors:** Ensure all necessary libraries was installed.
-> - **Permissions Issues:** As you loading new programs directly into Linux Kernel, you must need to run some commands with `root` privileges.
+> The following work and its results are the artefacts of a project presented for the Network Security class on a Master's in Computer Science from State University of Londrina (UEL) in order to obtain a good grade on the subject.
+>
+> This repository is created **solely for educational purposes**. The content provided here is intended to serve as examples and study material. **There are no guarantees that the code or any other material is suitable or safe for production use**.
+>
+> If you choose to use any part of this project in a production environment, **you do so at your own risk**. It is strongly recommended to thoroughly review the code and implement proper testing before any production use.
 
-## Contributions
+## Must Read References
 
-We welcome contributions! Feel free to open issues for suggestions or bug
-reports, and pull requests are highly appreciated.
+- **IETF (2025).** *[Segment Routing over IPv6 (SRv6) Security](https://datatracker.ietf.org/doc/draft-ietf-spring-srv6-security/)*
+- **Iannone, L. (2024).** *[Segment Routing over IPv6 Proof of Transit](https://datatracker.ietf.org/meeting/119/materials/slides-119-spring-srv6-proof-of-transit-00)*
+- **Aumasson, J.-P. (2020).** *[BLAKE3 Cryptographic Hash Function.](https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html#section-1.1)*
+- **Borges, R. et al. (2023).** *[In-situ Proof-of-Transit for Path-Aware Programmable Networks.](https://ieeexplore.ieee.org/document/10175482)*
+- **Hara, Y. et al. (2025).** *[eBPF-Based Ordered Proof of Transit for Trustworthy Service Function Chaining.](https://ieeexplore.ieee.org/document/10924210)*
+- **Borges, R. et al. (2024).** *[PoT-PolKA: Let the Edge Control the Proof-of-Transit in Path-Aware Networks.](https://ieeexplore.ieee.org/document/10500862)*
+- **Martinez, A. et al. (2024).** *[Implementation of a Traffic Flow Path Verification System in a Data Network.](https://ieeexplore.ieee.org/document/10597042)*
+- **Martinello, M. et al. (2024).** *[PathSec: Path-Aware Secure Routing with Native Path Verification and Auditability.](https://ieeexplore.ieee.org/document/10807493)*
 
-## Acknowledgments
 
-- **eBPF Community:** For their continuous efforts in advancing eBPF capabilities.
-- **Linux Kernel Developers:** For maintaining and enhancing the kernel's networking stack.
-- **Open-Source Contributors:** For providing tools like bpftool who helps eBPF development.
