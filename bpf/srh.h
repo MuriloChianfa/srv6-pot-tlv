@@ -55,7 +55,7 @@ struct srh {
     struct in6_addr segments[];
 } __attribute__((packed));
 
-static __always_inline int srh_hdr_len(struct srh *srh)
+static __always_inline __u32 srh_hdr_len(struct srh *srh)
 {
     return (srh->hdr_ext_len + 1) * HDR_BYTE_SIZE;
 }
@@ -67,7 +67,7 @@ static __always_inline int srh_hdr_cb(struct srh *srh, void *end)
     return 0;
 }
 
-static __always_inline int tlv_hdr_offset(struct srh *srh)
+static __always_inline __u32 tlv_hdr_offset(struct srh *srh)
 {
     return ETH_HDR_LEN + IPV6_HDR_LEN + srh_hdr_len(srh);
 }

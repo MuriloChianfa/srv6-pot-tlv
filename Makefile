@@ -4,14 +4,14 @@ OUTPUT = libbpfgo/output/
 LIBBPF_OBJ = $(OUTPUT)/libbpf/libbpf.a
 LIBBPF_INCLUDE_DIR = $(OUTPUT)
 
-SRC_DIR := ebpf
+SRC_DIR := bpf
 INCLUDE_DIR := $(SRC_DIR)
 BUILD_DIR := cmd/build
 
 EBPF_TARGETS := seg6_pot_tlv
 
 CLANG := clang
-CLANG_FLAGS := -O2 -g -Wall -Wextra -Wconversion -target bpf
+CLANG_FLAGS := -O2 -g -Wall -Wextra -Wconversion -Werror -target bpf
 CLANG_FLAGS += -mllvm -bpf-stack-size=2048
 CLANG_FLAGS += -I$(SRC_DIR) \
 	-I$(LIBBPF_INCLUDE_DIR) -I/usr/include
@@ -33,7 +33,7 @@ $(shell mkdir -p $(shell pwd)/$(BUILD_DIR))
 
 all: $(BUILD_DIR)/$(OUTPUT_BIN)
 
-$(BUILD_DIR)/$(EBPF_TARGETS).o: $(SRC_DIR)/ebpf.c $(wildcard $(SRC_DIR)/*/*.h) $(wildcard $(SRC_DIR)/*.h)
+$(BUILD_DIR)/$(EBPF_TARGETS).o: seg6-pot-tlv.bpf.c $(wildcard $(SRC_DIR)/*/*.h) $(wildcard $(SRC_DIR)/*.h)
 	$(CLANG) $(CLANG_FLAGS) -c $< -o $@
 
 $(LIBBPF_OBJ):

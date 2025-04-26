@@ -15,10 +15,7 @@ static __always_inline int remove_pot_tlv(struct xdp_md *ctx)
     void *data = (void *)(long)ctx->data;
     void *end = (void *)(long)ctx->data_end;
 
-    __u32 xdp_len = end - data;
-
-    struct ethhdr *eth = ETH_HDR_PTR;
-    struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
+    __u32 xdp_len = (__u32)(end - data);
     struct srh *srh = SRH_HDR_PTR;
 
     if (recalc_ctx_tlv_len(ctx, POT_TLV_EXT_LEN) < 0) {
@@ -30,6 +27,11 @@ static __always_inline int remove_pot_tlv(struct xdp_md *ctx)
 
     if (SRH_HDR_PTR + srh_hdr_len(srh) + POT_TLV_WIRE_LEN > end) {
         bpf_printk("[seg6_pot_tlv][-] invalid offset on packet buffer for TLV");
+        return -1;
+    }
+
+    if (compute_witness_once(tlv, srh, end) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] compute_witness failed");
         return -1;
     }
 
@@ -63,8 +65,8 @@ static __always_inline int remove_pot_tlv(struct xdp_md *ctx)
     }
 
     __u32 max_shift = xdp_len - (offset + POT_TLV_WIRE_LEN);
-        if (max_shift > MAX_PAYLOAD_SHIFT_LEN)
-            max_shift = MAX_PAYLOAD_SHIFT_LEN;
+    if (max_shift > MAX_PAYLOAD_SHIFT_LEN)
+        max_shift = MAX_PAYLOAD_SHIFT_LEN;
 
 #pragma clang loop unroll(disable)
     for (__u32 i = 0; i < max_shift; ++i) {

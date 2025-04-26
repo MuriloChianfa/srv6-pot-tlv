@@ -45,19 +45,21 @@ struct pot_tlv {
     __u8 root[BLAKE3_DIGEST_LEN];
 } __attribute__((packed));
 
-static __always_inline void compute_tlv(struct pot_tlv *tlv, const __u8 key[32], __u8 *target)
+static __always_inline void compute_tlv(struct pot_tlv *tlv, const __u8 key[32])
 {
-    blake3_keyed_hash((const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), key, target);
+    blake3_keyed_hash((const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), key, (__u8 *)tlv->witness);
 }
 
 static __always_inline int compare_pot_digest(const struct pot_tlv *x, const struct pot_tlv *y)
 {
-    return __builtin_memcmp(x->witness, y->witness, BLAKE3_DIGEST_LEN);
+    return __builtin_memcmp(x->witness, y->witness, BLAKE3_DIGEST_LEN)
+        && __builtin_memcmp(x->root, y->witness, BLAKE3_DIGEST_LEN);
 }
 
 static __always_inline void zerofy_witness(const struct pot_tlv *tlv)
 {
-    __builtin_memset(tlv->witness, 0, sizeof(tlv->witness));
+    __builtin_memcpy((void *)tlv->root, tlv->witness, sizeof(tlv->root));
+    __builtin_memset((void *)tlv->witness, 0, sizeof(tlv->witness));
 }
 
 static __always_inline void init_tlv(struct pot_tlv *tlv)

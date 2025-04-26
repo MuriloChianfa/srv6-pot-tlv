@@ -34,10 +34,11 @@ static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void
     }
 
 #pragma clang loop unroll(disable)
-    for (__u32 i = 0; i < SEG6_MAX_KEYS; i++) {
-        if (i >= segment_id_size) continue;
+    for (__s16 i = SEG6_MAX_KEYS; i >= 0; i--) {
+        if (i < 0) i = 0;
+        if ((__u32)i >= segment_id_size) continue;
 
-        __u32 segment_offset = SRH_FIXED_HDR_LEN + (IPV6_LEN * i);
+        __u32 segment_offset = SRH_FIXED_HDR_LEN + (IPV6_LEN * (__u32)i);
         if ((void *)((__u8 *)srh + segment_offset + IPV6_LEN) > end) {
             bpf_printk("[seg6_pot_tlv][-] SID %u extends beyond packet", i);
             return -1;
@@ -53,7 +54,7 @@ static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void
         }
 
         bpf_printk("[seg6_pot_tlv][*] Computing BLAKE3 for SID %pI6", sid.s6_addr);
-        compute_tlv(tlv, pot_sid_key->key, tlv->root);
+        compute_tlv(tlv, pot_sid_key->key);
     }
 
     bpf_printk("[seg6_pot_tlv][*] BLAKE3 calculated to each SID successfully");
@@ -89,7 +90,7 @@ static __always_inline int compute_witness_once(struct pot_tlv *tlv, struct srh 
     }
 
     bpf_printk("[seg6_pot_tlv][*] Computing BLAKE3 for SID %pI6", sid.s6_addr);
-    compute_tlv(tlv, pot_sid_key->key, tlv->witness);
+    compute_tlv(tlv, pot_sid_key->key);
 
     bpf_printk("[seg6_pot_tlv][*] BLAKE3 calculated for witness");
     return 0;

@@ -20,8 +20,8 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
-    __u64 len = skb->len;
-    __u64 offset = tlv_hdr_offset(srh);
+    __u32 len = skb->len;
+    __u32 offset = tlv_hdr_offset(srh);
 
     if (inc_skb_hdr_len(skb, POT_TLV_WIRE_LEN) < 0)
         return -1;
@@ -30,8 +30,8 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
     for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
         if (i >= POT_TLV_WIRE_LEN + HDR_ADDING_OFFSET) break;
 
-        __u64 tail_ptr = len - 1 - i;
-        __u64 head_ptr = len - 1 - i + POT_TLV_WIRE_LEN;
+        __u32 tail_ptr = len - 1 - i;
+        __u32 head_ptr = len - 1 - i + POT_TLV_WIRE_LEN;
 
         __u8 byte;
         if (bpf_skb_load_bytes(skb, tail_ptr, &byte, 1) < 0) return -1;
@@ -41,8 +41,8 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
     for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
         if (i >= POT_TLV_WIRE_LEN) break;
 
-        __u64 head_ptr = offset - 1 - i + POT_TLV_WIRE_LEN;
-        __u64 tail_ptr = offset - 1 - i + POT_TLV_WIRE_LEN + POT_TLV_WIRE_LEN;
+        __u32 head_ptr = offset - 1 - i + POT_TLV_WIRE_LEN;
+        __u32 tail_ptr = offset - 1 - i + POT_TLV_WIRE_LEN + POT_TLV_WIRE_LEN;
 
         __u8 byte;
         if (bpf_skb_load_bytes(skb, head_ptr, &byte, 1) < 0) return -1;

@@ -9,7 +9,7 @@
 
 #include "hdr.h"
 
-static __always_inline int recalc_skb_ip6_tlv_len(struct __sk_buff *skb, __u64 len)
+static __always_inline int recalc_skb_ip6_tlv_len(struct __sk_buff *skb, __u16 len)
 {
     void *data = (void *)(long)skb->data;
     void *end = (void *)(long)skb->data_end;
@@ -22,7 +22,7 @@ static __always_inline int recalc_skb_ip6_tlv_len(struct __sk_buff *skb, __u64 l
     return 0;
 }
 
-static __always_inline int recalc_skb_tlv_len(struct __sk_buff *skb, __u64 len)
+static __always_inline int recalc_skb_tlv_len(struct __sk_buff *skb, __u16 len)
 {
     void *data = (void *)(long)skb->data;
     void *end = (void *)(long)skb->data_end;
@@ -35,7 +35,7 @@ static __always_inline int recalc_skb_tlv_len(struct __sk_buff *skb, __u64 len)
     return 0;
 }
 
-static __always_inline int recalc_ctx_ip6_tlv_len(struct xdp_md *ctx, __u64 len)
+static __always_inline int recalc_ctx_ip6_tlv_len(struct xdp_md *ctx, __u16 len)
 {
     void *data = (void *)(long)ctx->data;
     void *end = (void *)(long)ctx->data_end;
@@ -48,7 +48,7 @@ static __always_inline int recalc_ctx_ip6_tlv_len(struct xdp_md *ctx, __u64 len)
     return 0;
 }
 
-static __always_inline int recalc_ctx_tlv_len(struct xdp_md *ctx, __u64 len)
+static __always_inline int recalc_ctx_tlv_len(struct xdp_md *ctx, __u16 len)
 {
     void *data = (void *)(long)ctx->data;
     void *end = (void *)(long)ctx->data_end;
@@ -58,6 +58,19 @@ static __always_inline int recalc_ctx_tlv_len(struct xdp_md *ctx, __u64 len)
         return -1;
 
     srh->hdr_ext_len -= len;
+    return 0;
+}
+
+static __always_inline int reverse_recalc_ctx_tlv_len(struct xdp_md *ctx, __u16 len)
+{
+    void *data = (void *)(long)ctx->data;
+    void *end = (void *)(long)ctx->data_end;
+
+    struct srh *srh = SRH_HDR_PTR;
+    if (srh_hdr_cb(srh, end) < 0)
+        return -1;
+
+    srh->hdr_ext_len += len;
     return 0;
 }
 
