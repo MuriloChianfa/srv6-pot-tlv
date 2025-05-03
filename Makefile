@@ -8,52 +8,98 @@ SRC_DIR := bpf
 INCLUDE_DIR := $(SRC_DIR)
 BUILD_DIR := cmd/build
 
-EBPF_TARGETS := seg6_pot_tlv
+EBPF_SOURCE := seg6-pot-tlv.bpf.c
 
-# Algorithm options:
-# -DPOLY1305
-# -DSIPHASH
-# -DBLAKE3
+ALGORITHMS := POLY1305 SIPHASH BLAKE3
+ALGO_FLAGS := $(foreach algo,$(ALGORITHMS),-D$(algo))
+ALGO_NAMES := $(foreach algo,$(ALGORITHMS),$(shell echo $(algo) | tr '[:upper:]' '[:lower:]'))
+
+DEFAULT_ALGO_FLAG := -DBLAKE3
+DEFAULT_ALGO_NAME := blake3
+
 CLANG := clang
-CLANG_FLAGS := -O2 -g -Wall -Wextra -Wconversion -Werror -target bpf -DBLAKE3
-CLANG_FLAGS += -mllvm -bpf-stack-size=2048
-CLANG_FLAGS += -I$(SRC_DIR) \
+BASE_CLANG_FLAGS := -O2 -g -Wall -Wextra -Wconversion -Werror -target bpf
+BASE_CLANG_FLAGS += -mllvm -bpf-stack-size=2048
+BASE_CLANG_FLAGS += -I$(SRC_DIR) \
 	-I$(LIBBPF_INCLUDE_DIR) -I/usr/include
 
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/g')
-CLANG_FLAGS += -D__TARGET_ARCH_$(ARCH)
+BASE_CLANG_FLAGS += -D__TARGET_ARCH_$(ARCH)
 
 ABS_BUILD_DIR := $(shell pwd)/$(BUILD_DIR)
 
-OUTPUT_BIN := seg6-pot-tlv
-
+OUTPUT_BIN_PREFIX := seg6-pot-tlv
 CGO_ENABLED = 1
 CGO_CFLAGS := -I$(PWD)/libbpfgo/libbpf/include/uapi
 CGO_LDFLAGS := -L$(PWD)/libbpfgo/output/libbpf -l:libbpf.a -lelf -lzstd -pthread -lz
 CGO_EXTLDFLAGS = '-w -extldflags "-static"'
-CGO_BUILD := go build -tags netgo -ldflags $(CGO_EXTLDFLAGS) -o build/$(OUTPUT_BIN) .
+GO_BUILD_CMD = go build -tags netgo -ldflags $(CGO_EXTLDFLAGS)
 
-$(shell mkdir -p $(shell pwd)/$(BUILD_DIR))
+$(shell mkdir -p $(BUILD_DIR))
 
-all: $(BUILD_DIR)/$(OUTPUT_BIN)
-
-$(BUILD_DIR)/$(EBPF_TARGETS).o: seg6-pot-tlv.bpf.c $(wildcard $(SRC_DIR)/*/*.h) $(wildcard $(SRC_DIR)/*.h)
-	$(CLANG) $(CLANG_FLAGS) -c $< -o $@
+all: reset $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-blake3 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-poly1305 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-siphash tmpclean
 
 $(LIBBPF_OBJ):
-	git clone git@github.com:aquasecurity/libbpfgo.git 2>/dev/null; echo "libbpfgo updated"
+	@if [ ! -d "libbpfgo" ]; then \
+		git clone https://github.com/aquasecurity/libbpfgo.git; \
+	else \
+		echo "libbpfgo directory already exists, skipping clone."; \
+	fi
 	cd libbpfgo && make libbpfgo-static
-	rm -rf output
 
-$(BUILD_DIR)/$(OUTPUT_BIN): $(BUILD_DIR)/$(EBPF_TARGETS).o $(LIBBPF_OBJ)
+$(BUILD_DIR)/seg6_pot_tlv_%.o: $(EBPF_SOURCE) $(wildcard $(SRC_DIR)/*/*.h) $(wildcard $(SRC_DIR)/*.h) $(LIBBPF_OBJ)
+	$(CLANG) $(BASE_CLANG_FLAGS) $(ALGO_FLAG) -c $< -o $@
+
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-%: $(BUILD_DIR)/seg6_pot_tlv_%.o $(LIBBPF_OBJ)
+	@cp $(BUILD_DIR)/seg6_pot_tlv_$(ALGO_NAME).o $(BUILD_DIR)/seg6_pot_tlv.o
+	@echo "$(GO_BUILD_CMD) -o $(ABS_BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-$(ALGO_NAME) ."
 	@cd cmd && CGO_ENABLED=$(CGO_ENABLED) \
 		CGO_CFLAGS=$(CGO_CFLAGS) \
-		CGO_LDFLAGS="-L$(PWD)/libbpfgo/output/libbpf -l:libbpf.a -lelf -lzstd -pthread -lz" \
+		CGO_LDFLAGS="$(CGO_LDFLAGS)" \
 		GOOS=linux GOARCH=$(ARCH) \
-		$(CGO_BUILD)
-	@echo "$(CGO_BUILD)"
+		$(GO_BUILD_CMD) -o $(ABS_BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-$(ALGO_NAME) .
+
+default_name: reset $(BUILD_DIR)/seg6_pot_tlv_blake3.o $(LIBBPF_OBJ)
+	@cp $(BUILD_DIR)/seg6_pot_tlv_blake3.o $(BUILD_DIR)/seg6_pot_tlv.o
+	@echo "$(GO_BUILD_CMD) -o $(ABS_BUILD_DIR)/$(OUTPUT_BIN_PREFIX) ."
+	@cd cmd && CGO_ENABLED=$(CGO_ENABLED) \
+		CGO_CFLAGS=$(CGO_CFLAGS) \
+		CGO_LDFLAGS="$(CGO_LDFLAGS)" \
+		GOOS=linux GOARCH=$(ARCH) \
+		$(GO_BUILD_CMD) -o $(ABS_BUILD_DIR)/$(OUTPUT_BIN_PREFIX) .
+$(BUILD_DIR)/seg6_pot_tlv_blake3.o: ALGO_FLAG = -DBLAKE3
+
+
+poly1305: $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-poly1305
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-poly1305: ALGO_FLAG = -DPOLY1305
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-poly1305: ALGO_NAME = poly1305
+$(BUILD_DIR)/seg6_pot_tlv_poly1305.o: ALGO_FLAG = -DPOLY1305
+
+siphash: $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-siphash
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-siphash: ALGO_FLAG = -DSIPHASH
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-siphash: ALGO_NAME = siphash
+$(BUILD_DIR)/seg6_pot_tlv_siphash.o: ALGO_FLAG = -DSIPHASH
+
+blake3: $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-blake3
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-blake3: ALGO_FLAG = -DBLAKE3
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-blake3: ALGO_NAME = blake3
+$(BUILD_DIR)/seg6_pot_tlv_blake3.o: ALGO_FLAG = -DBLAKE3
+
+all_algorithms: $(foreach algo,$(ALGO_NAMES),$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-$(algo))
+
+reset:
+	@rm -rf $(BUILD_DIR)
+	@cd cmd && mkdir build
 
 clean:
-	rm -rf $(BUILD_DIR) libbpfgo $(OUTPUT_BIN)
+	rm -rf $(BUILD_DIR)
+	rm -rf libbpfgo
 
-.PHONY: all clean
+distclean: clean
+	rm -rf libbpfgo
+
+tmpclean:
+	@rm -rf $(BUILD_DIR)/seg6_pot_tlv.o
+
+.DEFAULT_GOAL := default_name
+.PHONY: all all_algorithms clean distclean poly1305 siphash blake3 default_name

@@ -67,3 +67,5 @@ topologies/qemu-virtual-srv6/**/*.log
 build/
 output/
 libbpfgo/
+tests/evaluation/rtt_data/
+tests/evaluation/rtt_data.zip

@@ -9,10 +9,10 @@
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
                 |                          Nonce (96b)                           |
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-                |                      Witness (128-256b)                        |
+                |                      Witness (64-256b)                         |
                 |                            ...                                 |
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-                |                       Root (128-256b)                          |
+                |                       Root (64-256b)                           |
                 |                            ...                                 |
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 ```
@@ -82,6 +82,10 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
   - [topology/README.md](topology/README.md)
 </details>
+
+## Preliminary Results
+
+<div align="center"><img src="./tests/evaluation/rtt_comparison_boxplot.png" /></div>
 
 ## Warning Notice
 

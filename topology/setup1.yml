@@ -9,23 +9,29 @@
     - name: Setup keys and run seg6-pot-tlv in all SRv6 ifs for R1
       when: inventory_hostname == "r1"
       ansible.builtin.shell: |
+        tc qdisc del dev ens5 clsact
         pkill -f seg6-pot-tlv
       ignore_errors: true
 
     - name: Setup keys and run seg6-pot-tlv in all SRv6 ifs for R2
       when: inventory_hostname == "r2"
       ansible.builtin.shell: |
+        tc qdisc del dev ens4 clsact
+        tc qdisc del dev ens5 clsact
         pkill -f seg6-pot-tlv
       ignore_errors: true
 
     - name: Setup keys and run seg6-pot-tlv in all SRv6 ifs for R3
       when: inventory_hostname == "r3"
       ansible.builtin.shell: |
+        tc qdisc del dev ens4 clsact
+        tc qdisc del dev ens5 clsact
         pkill -f seg6-pot-tlv
       ignore_errors: true
 
     - name: Setup keys and run seg6-pot-tlv in all SRv6 ifs for R4
       when: inventory_hostname == "r4"
       ansible.builtin.shell: |
+        tc qdisc del dev ens5 clsact
         pkill -f seg6-pot-tlv
       ignore_errors: true
