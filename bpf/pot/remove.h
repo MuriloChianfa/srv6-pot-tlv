@@ -46,7 +46,6 @@ static __always_inline int remove_pot_tlv(struct xdp_md *ctx)
 
     bpf_printk("[seg6_pot_tlv][*] Comparing TLV digests");
     if (compare_pot_digest(tlv, &recursive_tlv) != 0) {
-        dump_pot_digest(tlv, &recursive_tlv);
         bpf_printk("[seg6_pot_tlv][-] PoT TLV wrong, possible path mismatch!");
         return -1;
     }

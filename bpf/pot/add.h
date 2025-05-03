@@ -20,12 +20,34 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
+#if !defined(SIPHASH)
     __u32 len = skb->len;
     __u32 offset = tlv_hdr_offset(srh);
+#else
+    __u32 old_len = skb->len;
+    __u32 offset = tlv_hdr_offset(srh);
+    __u32 shift_len = POT_TLV_WIRE_LEN;
+
+    if (offset > old_len) {
+        bpf_printk("[seg6_pot_tlv][-] Invalid TLV offset %u > old_len %u\n", offset, old_len);
+        return -1;
+    }
+
+    __u32 bytes_to_move = old_len - offset;
+    if (bytes_to_move <= 0) {
+        return 0;
+    }
+#endif
 
     if (inc_skb_hdr_len(skb, POT_TLV_WIRE_LEN) < 0)
         return -1;
 
+#if SIPHASH
+    data = (void *)(long)skb->data;
+    end = (void *)(long)skb->data_end;
+#endif
+
+#if !defined(SIPHASH)
 #pragma clang loop unroll(full)
     for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
         if (i >= POT_TLV_WIRE_LEN + HDR_ADDING_OFFSET) break;
@@ -48,6 +70,21 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
         if (bpf_skb_load_bytes(skb, head_ptr, &byte, 1) < 0) return -1;
         if (bpf_skb_store_bytes(skb, tail_ptr, &byte, 1, 0) < 0) return -1;
     }
+#else
+#pragma clang loop unroll(disable)
+    for (__u32 i = 0; i < bytes_to_move; ++i) {
+        if (i >= MAX_PAYLOAD_SHIFT_LEN) break;
+
+        __u32 reverse_idx = bytes_to_move - 1 - i;
+
+        __u32 src_offset = offset + reverse_idx;
+        __u32 dst_offset = offset + shift_len + reverse_idx;
+
+        __u8 byte;
+        if (bpf_skb_load_bytes(skb, src_offset, &byte, 1) < 0) return -1;
+        if (bpf_skb_store_bytes(skb, dst_offset, &byte, 1, 0) < 0) return -1;
+    }
+#endif
 
     data = (void *)(long)skb->data;
     end = (void *)(long)skb->data_end;

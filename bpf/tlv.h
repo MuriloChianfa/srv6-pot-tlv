@@ -8,7 +8,6 @@
 #include <linux/icmpv6.h>
 
 #include "crypto/nonce.h"
-#include "crypto/blake3.h"
 #include "exp.h"
 #include "srh.h"
 #include "hdr.h"
@@ -20,6 +19,17 @@
 #define POT_TLV_LEN (POT_TLV_WIRE_LEN - 2)
 #define POT_TLV_EXT_LEN (POT_TLV_WIRE_LEN / HDR_BYTE_SIZE)
 
+#if POLY1305
+    #include "crypto/poly1305.h"
+    #define DIGEST_LEN POLY1305_TAG_LEN
+#elif SIPHASH
+    #include "crypto/siphash.h"
+    #define DIGEST_LEN SIPHASH_WORD_LEN
+#else
+    #include "crypto/blake3.h"
+    #define DIGEST_LEN BLAKE3_DIGEST_LEN
+#endif
+
 /*
 Define the custom TLV structure for proof-of-transit using BLAKE3.
   0                   1                   2                   3
@@ -29,10 +39,10 @@ Define the custom TLV structure for proof-of-transit using BLAKE3.
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 |                          Nonce (96b)                           |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-|                        Witness (256b)                          |
+|                      Witness (128-256b)                        |
 |                            ...                                 |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-|                          Root 256b                             |
+|                       Root (128-256b)                          |
 |                            ...                                 |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 */
@@ -41,19 +51,29 @@ struct pot_tlv {
     __u8 length;
     __u16 reserved;
     __u8 nonce[NONCE_LEN];
-    __u8 witness[BLAKE3_DIGEST_LEN];
-    __u8 root[BLAKE3_DIGEST_LEN];
+    __u8 witness[DIGEST_LEN];
+    __u8 root[DIGEST_LEN];
 } __attribute__((packed));
 
 static __always_inline void compute_tlv(struct pot_tlv *tlv, const __u8 key[32])
 {
+#if POLY1305
+    poly1305((__u8 *)tlv->witness, (const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), key);
+#elif SIPHASH
+    struct siphash_key skey;
+    __builtin_memcpy(&skey, key, sizeof(struct siphash_key));
+    __u64 hash_result = siphash(&skey, (const void *)&tlv->nonce);
+    __builtin_memcpy(tlv->witness, &hash_result, SIPHASH_WORD_LEN);
+#else
     blake3_keyed_hash((const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), key, (__u8 *)tlv->witness);
+#endif
 }
 
 static __always_inline int compare_pot_digest(const struct pot_tlv *x, const struct pot_tlv *y)
 {
-    return __builtin_memcmp(x->witness, y->witness, BLAKE3_DIGEST_LEN)
-        && __builtin_memcmp(x->root, y->witness, BLAKE3_DIGEST_LEN);
+    if (__builtin_memcmp(x->witness, y->witness, DIGEST_LEN) == 0 && __builtin_memcmp(x->root, y->witness, DIGEST_LEN) == 0)
+        return 0;
+    return -1;
 }
 
 static __always_inline void zerofy_witness(const struct pot_tlv *tlv)
@@ -82,20 +102,6 @@ static __always_inline void dup_tlv_nonce(const struct pot_tlv *src, struct pot_
 
     if (sizeof(dst) % HDR_BYTE_SIZE != 0)
         bpf_printk("[seg6_pot_tlv][*] warning: TLV length %d not multiple of %d for SRH update", sizeof(dst), HDR_BYTE_SIZE);
-}
-
-static __always_inline void dump_pot_digest(const struct pot_tlv *x, const struct pot_tlv *y)
-{
-    bpf_printk("[seg6_pot_tlv][*] PoT digest on the wire");
-    bpf_printk("%02x%02x%02x%02x%02x%02x%02x%02x", x->witness[ 0], x->witness[ 1], x->witness[ 2], x->witness[ 3], x->witness[ 4], x->witness[ 5], x->witness[ 6], x->witness[ 7]);
-    bpf_printk("%02x%02x%02x%02x%02x%02x%02x%02x", x->witness[ 8], x->witness[ 9], x->witness[10], x->witness[11], x->witness[12], x->witness[13], x->witness[14], x->witness[15]);
-    bpf_printk("%02x%02x%02x%02x%02x%02x%02x%02x", x->witness[16], x->witness[17], x->witness[18], x->witness[19], x->witness[20], x->witness[21], x->witness[22], x->witness[23]);
-    bpf_printk("%02x%02x%02x%02x%02x%02x%02x%02x", x->witness[24], x->witness[25], x->witness[26], x->witness[27], x->witness[28], x->witness[29], x->witness[30], x->witness[31]);
-    bpf_printk("[seg6_pot_tlv][*] PoT digest recalculated");
-    bpf_printk("%02x%02x%02x%02x%02x%02x%02x%02x", y->witness[ 0], y->witness[ 1], y->witness[ 2], y->witness[ 3], y->witness[ 4], y->witness[ 5], y->witness[ 6], y->witness[ 7]);
-    bpf_printk("%02x%02x%02x%02x%02x%02x%02x%02x", y->witness[ 8], y->witness[ 9], y->witness[10], y->witness[11], y->witness[12], y->witness[13], y->witness[14], y->witness[15]);
-    bpf_printk("%02x%02x%02x%02x%02x%02x%02x%02x", y->witness[16], y->witness[17], y->witness[18], y->witness[19], y->witness[20], y->witness[21], y->witness[22], y->witness[23]);
-    bpf_printk("%02x%02x%02x%02x%02x%02x%02x%02x", y->witness[24], y->witness[25], y->witness[26], y->witness[27], y->witness[28], y->witness[29], y->witness[30], y->witness[31]);
 }
 
 #endif /* __SEG6_POT_TLV_H */

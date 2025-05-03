@@ -53,11 +53,11 @@ static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void
             return -1;
         }
 
-        bpf_printk("[seg6_pot_tlv][*] Computing BLAKE3 for SID %pI6", sid.s6_addr);
+        bpf_printk("[seg6_pot_tlv][*] Computing keyed-hash for SID %pI6", sid.s6_addr);
         compute_tlv(tlv, pot_sid_key->key);
     }
 
-    bpf_printk("[seg6_pot_tlv][*] BLAKE3 calculated to each SID successfully");
+    bpf_printk("[seg6_pot_tlv][*] keyed-hash calculated to each SID successfully");
     return 0;
 }
 
@@ -89,10 +89,10 @@ static __always_inline int compute_witness_once(struct pot_tlv *tlv, struct srh 
         return -1;
     }
 
-    bpf_printk("[seg6_pot_tlv][*] Computing BLAKE3 for SID %pI6", sid.s6_addr);
+    bpf_printk("[seg6_pot_tlv][*] Computing keyed-hash for SID %pI6", sid.s6_addr);
     compute_tlv(tlv, pot_sid_key->key);
 
-    bpf_printk("[seg6_pot_tlv][*] BLAKE3 calculated for witness");
+    bpf_printk("[seg6_pot_tlv][*] keyed-hash calculated for witness");
     return 0;
 }
 

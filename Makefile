@@ -10,8 +10,12 @@ BUILD_DIR := cmd/build
 
 EBPF_TARGETS := seg6_pot_tlv
 
+# Algorithm options:
+# -DPOLY1305
+# -DSIPHASH
+# -DBLAKE3
 CLANG := clang
-CLANG_FLAGS := -O2 -g -Wall -Wextra -Wconversion -Werror -target bpf
+CLANG_FLAGS := -O2 -g -Wall -Wextra -Wconversion -Werror -target bpf -DBLAKE3
 CLANG_FLAGS += -mllvm -bpf-stack-size=2048
 CLANG_FLAGS += -I$(SRC_DIR) \
 	-I$(LIBBPF_INCLUDE_DIR) -I/usr/include

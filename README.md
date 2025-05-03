@@ -1,5 +1,5 @@
 <h1 align="center">SRv6 Proof-of-Transit TLV</h1>
-<h3 align="center">Based on BLAKE3 Keyed-hash through eBPF XDP and TC</h3>
+<h3 align="center">Based on SipHash, Poly1305 and BLAKE3 keyed-hash functions</h3>
 
 ```bash
                  0                   1                   2                   3
@@ -9,17 +9,17 @@
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
                 |                          Nonce (96b)                           |
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-                |                        Witness (256b)                          |
+                |                      Witness (128-256b)                        |
                 |                            ...                                 |
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-                |                         Root (256b)                            |
+                |                       Root (128-256b)                          |
                 |                            ...                                 |
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 ```
 
 This project demonstrates a mechanism for achieving **Proof-of-Transit (PoT)** in an **SRv6 (Segment Routing over IPv6)** network using **eBPF  (Extended Berkeley Packet Filter)** attached to Linux **TC (Traffic Control)** and **XDP (eXpress Data Path)** hooks.
 
-The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** at specific nodes in the path. This **TLV** contains metadata (random nonce) and two cryptographic hashs (computed through the fast **BLAKE3 Keyed-hash** algorithm) that allows downstream nodes to verify the path taken by the packet.
+The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** through all nodes in the path. This **TLV** contains metadata (random nonce) and two cryptographic hashs (computed through the fast **SipHash**, **Poly1305** and **BLAKE3 Keyed-hash** algorithms) that allows downstream nodes to verify the path taken by the packet.
 
 ## Getting Started
 
@@ -97,11 +97,9 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
 - **IETF (2025).** *[Segment Routing over IPv6 (SRv6) Security](https://datatracker.ietf.org/doc/draft-ietf-spring-srv6-security/)*
 - **Iannone, L. (2024).** *[Segment Routing over IPv6 Proof of Transit](https://datatracker.ietf.org/meeting/119/materials/slides-119-spring-srv6-proof-of-transit-00)*
-- **Aumasson, J.-P. (2020).** *[BLAKE3 Cryptographic Hash Function.](https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html#section-1.1)*
 - **Borges, R. et al. (2023).** *[In-situ Proof-of-Transit for Path-Aware Programmable Networks.](https://ieeexplore.ieee.org/document/10175482)*
 - **Hara, Y. et al. (2025).** *[eBPF-Based Ordered Proof of Transit for Trustworthy Service Function Chaining.](https://ieeexplore.ieee.org/document/10924210)*
 - **Borges, R. et al. (2024).** *[PoT-PolKA: Let the Edge Control the Proof-of-Transit in Path-Aware Networks.](https://ieeexplore.ieee.org/document/10500862)*
 - **Martinez, A. et al. (2024).** *[Implementation of a Traffic Flow Path Verification System in a Data Network.](https://ieeexplore.ieee.org/document/10597042)*
 - **Martinello, M. et al. (2024).** *[PathSec: Path-Aware Secure Routing with Native Path Verification and Auditability.](https://ieeexplore.ieee.org/document/10807493)*
-
 
