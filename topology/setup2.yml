@@ -1,0 +1,119 @@
+---
+- name: Configure keys and run seg6-pot-tlv in all SRv6 ifs
+  hosts: routers
+  become: true
+  tasks:
+    # -------------------------------------------------------------------------
+    #  Setup keys and run seg6-pot-tlv in all SRv6 ifs
+    # -------------------------------------------------------------------------
+    - name: Setup keys and run seg6-pot-tlv in all SRv6 ifs for R1
+      when: inventory_hostname == "r1"
+      block:
+        - name: Kill running instances
+          ansible.builtin.command: pkill -f seg6-pot-tlv
+          ignore_errors: true
+        - name: Run seg6-pot-tlv in background
+          ansible.builtin.shell: |
+            tc qdisc del dev ens5 clsact
+            nohup /home/r1/seg6-pot-tlv --load ens5 > seg6-pot-tlv.ens5.log 2>&1 &
+        - name: Adding key for SID 1
+          ansible.builtin.command: /home/r1/seg6-pot-tlv --sid 2001:db8:ff:1::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee11
+        - name: Adding key for SID 2
+          ansible.builtin.command: /home/r1/seg6-pot-tlv --sid 2001:db8:ff:2::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee22
+        - name: Adding key for SID 3
+          ansible.builtin.command: /home/r1/seg6-pot-tlv --sid 2001:db8:ff:3::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee33
+        - name: Adding key for SID 4
+          ansible.builtin.command: /home/r1/seg6-pot-tlv --sid 2001:db8:ff:4::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee44
+        - name: Kill running instances
+          ansible.builtin.command: pkill -f seg6-pot-tlv
+          ignore_errors: true
+        - name: Run seg6-pot-tlv in background
+          ansible.builtin.shell: |
+            tc qdisc del dev ens5 clsact
+            nohup /home/r1/seg6-pot-tlv --load ens5 > seg6-pot-tlv.ens5.log 2>&1 &
+
+    - name: Setup keys and run seg6-pot-tlv in all SRv6 ifs for R2
+      when: inventory_hostname == "r2"
+      block:
+        - name: Kill running instances
+          ansible.builtin.command: pkill -f seg6-pot-tlv
+          ignore_errors: true
+        - name: Run seg6-pot-tlv in background
+          ansible.builtin.shell: |
+            tc qdisc del dev ens4 clsact
+            tc qdisc del dev ens5 clsact
+            nohup /home/r2/seg6-pot-tlv --load ens4 > seg6-pot-tlv.ens4.log 2>&1 &
+            nohup /home/r2/seg6-pot-tlv --load ens5 > seg6-pot-tlv.ens5.log 2>&1 &
+        - name: Adding key for SID 1
+          ansible.builtin.command: /home/r2/seg6-pot-tlv --sid 2001:db8:ff:1::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee11
+        - name: Adding key for SID 2
+          ansible.builtin.command: /home/r2/seg6-pot-tlv --sid 2001:db8:ff:2::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee22
+        - name: Adding key for SID 3
+          ansible.builtin.command: /home/r2/seg6-pot-tlv --sid 2001:db8:ff:3::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee33
+        - name: Adding key for SID 4
+          ansible.builtin.command: /home/r2/seg6-pot-tlv --sid 2001:db8:ff:4::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee44
+        - name: Kill running instances
+          ansible.builtin.command: pkill -f seg6-pot-tlv
+          ignore_errors: true
+        - name: Run seg6-pot-tlv in background
+          ansible.builtin.shell: |
+            tc qdisc del dev ens4 clsact
+            tc qdisc del dev ens5 clsact
+            nohup /home/r2/seg6-pot-tlv --load ens4 > seg6-pot-tlv.ens4.log 2>&1 &
+            nohup /home/r2/seg6-pot-tlv --load ens5 > seg6-pot-tlv.ens5.log 2>&1 &
+
+    - name: Setup keys and run seg6-pot-tlv in all SRv6 ifs for R3
+      when: inventory_hostname == "r3"
+      block:
+        - name: Kill running instances
+          ansible.builtin.command: pkill -f seg6-pot-tlv
+          ignore_errors: true
+        - name: Run seg6-pot-tlv in background
+          ansible.builtin.shell: |
+            tc qdisc del dev ens4 clsact
+            tc qdisc del dev ens5 clsact
+            nohup /home/r3/seg6-pot-tlv --load ens4 > seg6-pot-tlv.ens4.log 2>&1 &
+            nohup /home/r3/seg6-pot-tlv --load ens5 > seg6-pot-tlv.ens5.log 2>&1 &
+        - name: Adding key for SID 1
+          ansible.builtin.command: /home/r3/seg6-pot-tlv --sid 2001:db8:ff:1::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee11
+        - name: Adding key for SID 2
+          ansible.builtin.command: /home/r3/seg6-pot-tlv --sid 2001:db8:ff:2::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee22
+        - name: Adding key for SID 3
+          ansible.builtin.command: /home/r3/seg6-pot-tlv --sid 2001:db8:ff:3::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee33
+        - name: Adding key for SID 4
+          ansible.builtin.command: /home/r3/seg6-pot-tlv --sid 2001:db8:ff:4::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee44
+        - name: Kill running instances
+          ansible.builtin.command: pkill -f seg6-pot-tlv
+          ignore_errors: true
+        - name: Run seg6-pot-tlv in background
+          ansible.builtin.shell: |
+            tc qdisc del dev ens4 clsact
+            tc qdisc del dev ens5 clsact
+            nohup /home/r3/seg6-pot-tlv --load ens4 > seg6-pot-tlv.ens4.log 2>&1 &
+            nohup /home/r3/seg6-pot-tlv --load ens5 > seg6-pot-tlv.ens5.log 2>&1 &
+
+    - name: Setup keys and run seg6-pot-tlv in all SRv6 ifs for R4
+      when: inventory_hostname == "r4"
+      block:
+        - name: Kill running instances
+          ansible.builtin.command: pkill -f seg6-pot-tlv
+          ignore_errors: true
+        - name: Run seg6-pot-tlv in background
+          ansible.builtin.shell: |
+            tc qdisc del dev ens5 clsact
+            nohup /home/r4/seg6-pot-tlv --load ens5 > seg6-pot-tlv.ens5.log 2>&1 &
+        - name: Adding key for SID 1
+          ansible.builtin.command: /home/r4/seg6-pot-tlv --sid 2001:db8:ff:1::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee11
+        - name: Adding key for SID 2
+          ansible.builtin.command: /home/r4/seg6-pot-tlv --sid 2001:db8:ff:2::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee22
+        - name: Adding key for SID 3
+          ansible.builtin.command: /home/r4/seg6-pot-tlv --sid 2001:db8:ff:3::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee33
+        - name: Adding key for SID 4
+          ansible.builtin.command: /home/r4/seg6-pot-tlv --sid 2001:db8:ff:4::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee44
+        - name: Kill running instances
+          ansible.builtin.command: pkill -f seg6-pot-tlv
+          ignore_errors: true
+        - name: Run seg6-pot-tlv in background
+          ansible.builtin.shell: |
+            tc qdisc del dev ens5 clsact
+            nohup /home/r4/seg6-pot-tlv --load ens5 > seg6-pot-tlv.ens5.log 2>&1 &
