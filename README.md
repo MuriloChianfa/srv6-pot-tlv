@@ -21,9 +21,40 @@ This project demonstrates a mechanism for achieving **Proof-of-Transit (PoT)** i
 
 The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** through all nodes in the path. This **TLV** contains metadata (random nonce) and two cryptographic hashs (computed through the fast **SipHash**, **Poly1305** and **BLAKE3 Keyed-hash** algorithms) that allows downstream nodes to verify the path taken by the packet.
 
+## How It Works
+
+<table>
+  <tr>
+    <td width="50%"><img src="./topology/pot-tlv-insertion.gif" alt="PoT TLV Insertion" width="100%"/></td>
+    <td width="50%"><img src="./topology/pot-tlv-removal.gif" alt="PoT TLV Removal" width="100%"/></td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <small>
+        <li>Increase the packet buffer by the size of the new PoT TLV (e.g., 32 bytes for SipHash).</li>
+        <li>Shift the existing packet payload forward, byte-by-byte, starting from the insertion point (immediately after the SRv6 last segment) to the end of the packet. This creates room for the new TLV without overwriting data.</li>
+        <li>Generate a new random nonce and compute all required PoT cryptographic digests using the segment's keys.</li>
+        <li>Write the new TLV into the packet, placing it directly after the SRv6 last segment.</li>
+        <li>Update the packet length fields to reflect the addition of the TLV.</li>
+        <li>No need to recalculate the L7 checksum, which is beneficial for performance.</li>
+      </small>
+    </td>
+    <td width="50%">
+      <small>
+        <li>Locate the PoT TLV immediately after the SRv6 last segment in the packet buffer.</li>
+        <li>Validate the TLV by recalculating the cryptographic digests and comparing them with the received values to ensure path integrity.</li>
+        <li>Shift the remaining packet payload forward, byte-by-byte.</li>
+        <li>Overwrite and remove the TLV from the buffer.</li>
+        <li>Adjust the packet length fields to reflect the removal of the TLV.</li>
+        <li>No need to recalculate the L7 checksum after TLV removal.</li>
+      </small>
+    </td>
+  </tr>
+</table>
+
 ## Getting Started
 
-<details>
+<details open>
   <summary style="font-size: 16px;"><strong>Compiling the BTF bytecode and the CLI tool</strong></summary>
 
   #### Requirements
@@ -42,8 +73,13 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   # Install required libraries
   apt install clang llvm libbpf-dev libelf-dev make
 
-  # Compile the project
-  make all
+  # Compile all algorithms
+  make blake3
+  make siphash
+  make poly1305
+
+  # The artefacts will be generated here
+  ls -l cmd/build/
   ```
 </details>
 <details open>
@@ -82,12 +118,25 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
   - [topology/README.md](topology/README.md)
 </details>
+<details>
+  <summary style="font-size: 16px;"><strong>Run tests and evaluation</strong></summary>
+
+  - [tests/evaluation/README.md](tests/evaluation/README.md)
+</details>
 
 ## Preliminary Results
 
-> Environment: x86_64 Xeon E5-2683 v4 @ 2.10GHz, 128G RAM, Ubuntu 24.04, Clang 18.1.3, Kernel 6.11.0-19-generic, Realtek RTL8411 PCI Gigabit Ethernet
+<blockquote style="margin-bottom: 4px;">Environment: x86_64 Xeon E5-2683 v4 @ 2.10GHz, 128G RAM, Ubuntu 24.04</blockquote>
+<blockquote style="margin-top: 0; margin-bottom: 6px;">Tools: Clang 18.1.3, Kernel 6.11.0-19-generic, Realtek RTL8411 PCI Gigabit Ethernet</blockquote>
 
 <div align="center"><img src="./tests/evaluation/rtt_comparison_boxplot.png" /></div>
+
+## DEMO scenario
+
+<blockquote style="margin-bottom: 4px;">SRv6 Domain: VRF 10 table local, IPv6 Network 2001:db8::ff::/48</blockquote>
+<blockquote style="margin-top: 0; margin-bottom: 6px;">SRv6 Setup: R1 and R6 Action End.DT6, R2 and R3 Action End</blockquote>
+
+<div align="center"><img src="./topology/qemu-virtual-srv6.png" /></div>
 
 ## Warning Notice
 
