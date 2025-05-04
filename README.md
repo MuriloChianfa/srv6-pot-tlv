@@ -23,6 +23,11 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
 ## How It Works
 
+<style>
+  table td, th, tr {
+    border: none !important;
+  }
+</style>
 <table>
   <tr>
     <td width="50%"><img src="./topology/pot-tlv-insertion.gif" alt="PoT TLV Insertion" width="100%"/></td>
@@ -31,22 +36,26 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   <tr>
     <td width="50%">
       <small>
-        <li>Increase the packet buffer by the size of the new PoT TLV (e.g., 32 bytes for SipHash).</li>
-        <li>Shift the existing packet payload forward, byte-by-byte, starting from the insertion point (immediately after the SRv6 last segment) to the end of the packet. This creates room for the new TLV without overwriting data.</li>
-        <li>Generate a new random nonce and compute all required PoT cryptographic digests using the segment's keys.</li>
-        <li>Write the new TLV into the packet, placing it directly after the SRv6 last segment.</li>
-        <li>Update the packet length fields to reflect the addition of the TLV.</li>
-        <li>No need to recalculate the L7 checksum, which is beneficial for performance.</li>
+        <ol>
+          <li>Increase the packet buffer by the size of the new PoT TLV (e.g., 32 bytes for SipHash).</li>
+          <li>Shift the existing packet payload forward, byte-by-byte, starting from the insertion point (immediately after the SRv6 last segment) to the end of the packet. This creates room for the new TLV without overwriting data.</li>
+          <li>Generate a new random nonce and compute all required PoT cryptographic digests using the segment's keys.</li>
+          <li>Write the new TLV into the packet, placing it directly after the SRv6 last segment.</li>
+          <li>Update the packet length fields to reflect the addition of the TLV.</li>
+          <li>No need to recalculate the L7 checksum, which is beneficial for performance.</li>
+        </ol>
       </small>
     </td>
     <td width="50%">
       <small>
-        <li>Locate the PoT TLV immediately after the SRv6 last segment in the packet buffer.</li>
-        <li>Validate the TLV by recalculating the cryptographic digests and comparing them with the received values to ensure path integrity.</li>
-        <li>Shift the remaining packet payload forward, byte-by-byte.</li>
-        <li>Overwrite and remove the TLV from the buffer.</li>
-        <li>Adjust the packet length fields to reflect the removal of the TLV.</li>
-        <li>No need to recalculate the L7 checksum after TLV removal.</li>
+        <ol>
+          <li>Locate the PoT TLV immediately after the SRv6 last segment in the packet buffer.</li>
+          <li>Validate the TLV by recalculating the cryptographic digests and comparing them with the received values to ensure path integrity.</li>
+          <li>Shift the remaining packet payload forward, byte-by-byte.</li>
+          <li>Overwrite and remove the TLV from the buffer.</li>
+          <li>Adjust the packet length fields to reflect the removal of the TLV.</li>
+          <li>No need to recalculate the L7 checksum after TLV removal.</li>
+        </ol>
       </small>
     </td>
   </tr>
@@ -126,14 +135,14 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
 ## Preliminary Results
 
-<blockquote style="margin-bottom: 4px;">Environment: x86_64 Xeon E5-2683 v4 @ 2.10GHz, 128G RAM, Ubuntu 24.04</blockquote>
+<blockquote style="margin-bottom: 2px;">Environment: x86_64 Xeon E5-2683 v4 @ 2.10GHz, 128G RAM, Ubuntu 24.04</blockquote>
 <blockquote style="margin-top: 0; margin-bottom: 6px;">Tools: Clang 18.1.3, Kernel 6.11.0-19-generic, Realtek RTL8411 PCI Gigabit Ethernet</blockquote>
 
 <div align="center"><img src="./tests/evaluation/rtt_comparison_boxplot.png" /></div>
 
 ## DEMO scenario
 
-<blockquote style="margin-bottom: 4px;">SRv6 Domain: VRF 10 table local, IPv6 Network 2001:db8::ff::/48</blockquote>
+<blockquote style="margin-bottom: 2px;">SRv6 Domain: VRF 10 table local, IPv6 Network 2001:db8::ff::/48</blockquote>
 <blockquote style="margin-top: 0; margin-bottom: 6px;">SRv6 Setup: R1 and R6 Action End.DT6, R2 and R3 Action End</blockquote>
 
 <div align="center"><img src="./topology/qemu-virtual-srv6.png" /></div>
