@@ -21,8 +21,6 @@ This project demonstrates a mechanism for achieving **Proof-of-Transit (PoT)** i
 
 The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** through all nodes in the path. This **TLV** contains metadata (random nonce) and two cryptographic hashs (computed through the fast **SipHash**, **Poly1305** and **BLAKE3 Keyed-hash** algorithms) that allows downstream nodes to verify the path taken by the packet.
 
-## How It Works
-
 <h3 align="center">eBPF TC (Traffic Control) and XDP (eXpress Data Path) Operations</h3>
 
 <div align="center">
