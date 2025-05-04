@@ -23,43 +23,14 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
 ## How It Works
 
-<style>
-  table td, th, tr {
-    border: none !important;
-  }
-</style>
-<table>
-  <tr>
-    <td width="50%"><img src="./topology/pot-tlv-insertion.gif" alt="PoT TLV Insertion" width="100%"/></td>
-    <td width="50%"><img src="./topology/pot-tlv-removal.gif" alt="PoT TLV Removal" width="100%"/></td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <small>
-        <ol>
-          <li>Increase the packet buffer by the size of the new PoT TLV (e.g., 32 bytes for SipHash).</li>
-          <li>Shift the existing packet payload forward, byte-by-byte, starting from the insertion point (immediately after the SRv6 last segment) to the end of the packet. This creates room for the new TLV without overwriting data.</li>
-          <li>Generate a new random nonce and compute all required PoT cryptographic digests using the segment's keys.</li>
-          <li>Write the new TLV into the packet, placing it directly after the SRv6 last segment.</li>
-          <li>Update the packet length fields to reflect the addition of the TLV.</li>
-          <li>No need to recalculate the L7 checksum, which is beneficial for performance.</li>
-        </ol>
-      </small>
-    </td>
-    <td width="50%">
-      <small>
-        <ol>
-          <li>Locate the PoT TLV immediately after the SRv6 last segment in the packet buffer.</li>
-          <li>Validate the TLV by recalculating the cryptographic digests and comparing them with the received values to ensure path integrity.</li>
-          <li>Shift the remaining packet payload forward, byte-by-byte.</li>
-          <li>Overwrite and remove the TLV from the buffer.</li>
-          <li>Adjust the packet length fields to reflect the removal of the TLV.</li>
-          <li>No need to recalculate the L7 checksum after TLV removal.</li>
-        </ol>
-      </small>
-    </td>
-  </tr>
-</table>
+<div align="center">
+  <img src="./topology/pot-tlv-insertion.gif" alt="PoT TLV Insertion" width="45%"/>
+  <img src="./topology/pot-tlv-removal.gif" alt="PoT TLV Removal" width="45%"/>
+</div>
+
+| PoT TLV Insertion Steps | PoT TLV Removal Steps |
+|------------------------|----------------------|
+| 1. Increase the packet buffer by the size of the new PoT TLV (e.g., 32 bytes for SipHash) to make space for insertion.<br>2. Shift the existing packet payload forward, byte-by-byte, starting from the insertion point (immediately after the SRv6 last segment) to the end of the packet. This creates room for the new TLV without overwriting data.<br>3. Generate a new random nonce and compute all required PoT cryptographic digests using the segment's keys.<br>4. Write the new TLV into the packet, placing it directly after the SRv6 last segment.<br>5. Update the packet length fields to reflect the addition of the TLV.<br>6. No need to recalculate the L7 checksum, which is beneficial for performance. | 1. Locate the PoT TLV immediately after the SRv6 last segment in the packet buffer.<br>2. Validate the TLV by recalculating the cryptographic digests and comparing them with the received values to ensure path integrity.<br>3. Shift the remaining packet payload forward, byte-by-byte, to overwrite and remove the TLV from the buffer.<br>4. Adjust the packet length fields to reflect the removal of the TLV.<br>5. No need to recalculate the L7 checksum after TLV removal. |
 
 ## Getting Started
 
