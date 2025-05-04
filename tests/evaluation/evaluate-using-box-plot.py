@@ -24,8 +24,8 @@ def load_rtt_data(filename):
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    labels = ["baseline", "blake3", "siphash", "poly1305"]
-    pretty_labels = ["SRv6", "BLAKE3", "SipHash", "Poly1305"]
+    labels = ["baseline", "blake3", "poly1305", "siphash"]
+    pretty_labels = ["SRv6", "BLAKE3", "Poly1305", "SipHash"]
     data_files = [os.path.join(script_dir, f"rtt_data_{label}.txt") for label in labels]
 
     plot_filename = "rtt_comparison_boxplot.png"

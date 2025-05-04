@@ -85,6 +85,8 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
 ## Preliminary Results
 
+> Environment: x86_64 Xeon E5-2683 v4 @ 2.10GHz, 128G RAM, Ubuntu 24.04, Clang 18.1.3, Kernel 6.11.0-19-generic, Realtek RTL8411 PCI Gigabit Ethernet
+
 <div align="center"><img src="./tests/evaluation/rtt_comparison_boxplot.png" /></div>
 
 ## Warning Notice
