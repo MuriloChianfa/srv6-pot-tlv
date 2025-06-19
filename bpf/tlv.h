@@ -25,6 +25,9 @@
 #elif SIPHASH
     #include "crypto/siphash.h"
     #define DIGEST_LEN SIPHASH_WORD_LEN
+#elif HALFSIPHASH
+    #include "crypto/halfsiphash32.h"
+    #define DIGEST_LEN HALFSIPHASH_TAG_LEN
 #else
     #include "crypto/blake3.h"
     #define DIGEST_LEN BLAKE3_DIGEST_LEN
@@ -39,10 +42,10 @@ Define the custom TLV structure for proof-of-transit using BLAKE3.
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 |                          Nonce (96b)                           |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-|                      Witness (128-256b)                        |
+|                       Witness (32-256b)                        |
 |                            ...                                 |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-|                       Root (128-256b)                          |
+|                        Root (32-256b)                          |
 |                            ...                                 |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 */
@@ -63,7 +66,12 @@ static __always_inline void compute_tlv(struct pot_tlv *tlv, const __u8 key[32])
     struct siphash_key skey;
     __builtin_memcpy(&skey, key, sizeof(struct siphash_key));
     __u64 hash_result = siphash(&skey, (const void *)&tlv->nonce);
-    __builtin_memcpy(tlv->witness, &hash_result, SIPHASH_WORD_LEN);
+    __builtin_memcpy(tlv->witness, &hash_result, DIGEST_LEN);
+#elif HALFSIPHASH
+    struct halfsiphash_key skey;
+    __builtin_memcpy(&skey, key, sizeof(struct halfsiphash_key));
+    __u32 hash_result = halfsiphash32(&skey, (const void *)&tlv->nonce);
+    __builtin_memcpy(tlv->witness, &hash_result, DIGEST_LEN);
 #else
     blake3_keyed_hash((const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), key, (__u8 *)tlv->witness);
 #endif

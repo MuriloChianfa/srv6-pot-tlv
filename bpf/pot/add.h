@@ -20,7 +20,7 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
     struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
 
-#if !defined(SIPHASH)
+#if !defined(SIPHASH) && !defined(HALFSIPHASH)
     __u32 len = skb->len;
     __u32 offset = tlv_hdr_offset(srh);
 #else
@@ -42,12 +42,12 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
     if (inc_skb_hdr_len(skb, POT_TLV_WIRE_LEN) < 0)
         return -1;
 
-#if SIPHASH
+#if SIPHASH || defined(HALFSIPHASH)
     data = (void *)(long)skb->data;
     end = (void *)(long)skb->data_end;
 #endif
 
-#if !defined(SIPHASH)
+#if !defined(SIPHASH) && !defined(HALFSIPHASH)
 #pragma clang loop unroll(full)
     for (__u32 i = 0; i < MAX_PAYLOAD_SHIFT_LEN; ++i) {
         if (i >= POT_TLV_WIRE_LEN + HDR_ADDING_OFFSET) break;

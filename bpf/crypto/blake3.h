@@ -37,14 +37,10 @@ static __always_inline void blake3_keyed_hash(const __u8 *msg, __u32 len, const 
 {
     __u32 v[16];
 
+    const __u32 *key32 = (const __u32 *)__builtin_assume_aligned(key, 4);
 #pragma clang loop unroll(full)
     for (__u32 i = 0; i < 8; i++) {
-        __u32 k0 = key[4*i + 0];
-        __u32 k1 = key[4*i + 1];
-        __u32 k2 = key[4*i + 2];
-        __u32 k3 = key[4*i + 3];
-
-        v[i] = (k3 << 24) | (k2 << 16) | (k1 << 8) | k0;
+        v[i] = key32[i];
     }
 
     v[8] = 0;
@@ -59,17 +55,21 @@ static __always_inline void blake3_keyed_hash(const __u8 *msg, __u32 len, const 
     __u32 m[16];
 #pragma clang loop unroll(full)
     for (__u32 i = 0; i < 16; i++) {
-        __u32 w = 0;
-        if ((i * 4) < len) {
-            const __u8 *p = msg + i * 4;
+        __u32 word = 0;
+        __u32 offset = i * 4;
+        if (offset + 4 <= len) {
+            const __u32 *msg32 = (const __u32 *)__builtin_assume_aligned(msg, 4);
+            word = msg32[i];
+        } else if (offset < len) {
+            const __u8 *p = msg + offset;
             __u32 tmp = 0;
-            if ((i * 4) + 0 < len) tmp |= ((__u32)p[0] <<  0);
-            if ((i * 4) + 1 < len) tmp |= ((__u32)p[1] <<  8);
-            if ((i * 4) + 2 < len) tmp |= ((__u32)p[2] << 16);
-            if ((i * 4) + 3 < len) tmp |= ((__u32)p[3] << 24);
-            w = tmp;
+            if (offset + 0 < len) tmp |= ((__u32)p[0] <<  0);
+            if (offset + 1 < len) tmp |= ((__u32)p[1] <<  8);
+            if (offset + 2 < len) tmp |= ((__u32)p[2] << 16);
+            if (offset + 3 < len) tmp |= ((__u32)p[3] << 24);
+            word = tmp;
         }
-        m[i] = w;
+        m[i] = word;
     }
 
 #pragma clang loop unroll(full)

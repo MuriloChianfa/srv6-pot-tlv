@@ -1,7 +1,7 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 import sys
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 def load_rtt_data(filename):
     rtt_values = []
@@ -24,12 +24,12 @@ def load_rtt_data(filename):
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    labels = ["baseline", "blake3", "poly1305", "siphash"]
-    pretty_labels = ["SRv6", "BLAKE3", "Poly1305", "SipHash"]
+    labels = ["baseline", "halfsiphash", "siphash", "blake3", "poly1305"]
+    pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "BLAKE3", "Poly1305"]
     data_files = [os.path.join(script_dir, f"rtt_data_{label}.txt") for label in labels]
 
     plot_filename = "rtt_comparison_boxplot.png"
-    plot_title = "Round-Trip Time Comparison For Each PoT TLV Crypto Algorithm Implementation"
+    plot_title = "Round-Trip Time Comparison For Each PoT TLV Crypto Algorithm"
     y_axis_label = "Round-Trip Time (ms)"
 
     all_data = []
@@ -48,23 +48,33 @@ if __name__ == "__main__":
         print("Error: No valid data loaded. Cannot generate plot.", file=sys.stderr)
         sys.exit(1)
     elif len(all_data) < len(data_files):
-         print(f"Warning: Plotting with {len(all_data)} datasets instead of {len(data_files)} due to loading errors.", file=sys.stderr)
+        print(f"Warning: Plotting with {len(all_data)} datasets instead of {len(data_files)} due to loading errors.", file=sys.stderr)
 
     print("Generating box plot...")
     plt.figure(figsize=(10, 6))
-    box = plt.boxplot(all_data, patch_artist=True, labels=valid_labels)
+    box = plt.boxplot(all_data, patch_artist=True, labels=valid_labels, showfliers=False)
 
-    colors = ['lightblue', 'lightgreen', 'lightcoral', 'lightsalmon']
+    colors = ['#4c72b0', '#55a868', '#c44e52', '#8172b3', '#ccb974']
     for patch, color in zip(box['boxes'], colors[:len(all_data)]):
         patch.set_facecolor(color)
+        patch.set_alpha(0.8)
 
-    plt.title(plot_title)
-    plt.ylabel(y_axis_label)
-    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
+    plt.title(plot_title, fontsize=16, fontweight='bold')
+    plt.ylabel(y_axis_label, fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    
+    plt.grid(True, axis='y', linestyle='--', linewidth=0.5, alpha=0.7)
+    ax = plt.gca()
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(0.1))
+    ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
+    ax.tick_params(which='minor', length=4, color='gray')
+    
+    plt.tight_layout()
 
     try:
         plot_save_path = os.path.join(script_dir, plot_filename)
-        plt.savefig(plot_save_path)
+        plt.savefig(plot_save_path, dpi=300)
         print(f"Box plot saved to {plot_save_path}")
     except Exception as e:
         print(f"Error saving plot: {e}", file=sys.stderr)

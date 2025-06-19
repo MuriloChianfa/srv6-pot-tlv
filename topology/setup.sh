@@ -3,17 +3,17 @@
 # Check if an argument is provided
 if [ -z "$1" ]; then
   echo "Usage: $0 <algorithm>"
-  echo "Available algorithms: blake3, siphash, poly1305"
+  echo "Available algorithms: blake3, siphash, halfsiphash, poly1305"
   exit 1
 fi
 
 ALGO=$1
-ALLOWED_ALGOS=("blake3" "siphash" "poly1305")
+ALLOWED_ALGOS=("blake3" "siphash" "halfsiphash" "poly1305")
 
 # Validate the argument
 if [[ ! " ${ALLOWED_ALGOS[@]} " =~ " ${ALGO} " ]]; then
     echo "Error: Invalid algorithm '$ALGO'."
-    echo "Available algorithms: blake3, siphash, poly1305"
+    echo "Available algorithms: blake3, siphash, halfsiphash, poly1305"
     exit 1
 fi
 

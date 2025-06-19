@@ -57,7 +57,7 @@ def collect_rtt(target_ip, count=100, output_filename="rtt_data.txt"):
 if __name__ == "__main__":
     DEFAULT_TARGET_IP = "2001:db8:60:1::2"
     DEFAULT_NUM_PINGS = 300
-    ALLOWED_LABELS = ["baseline", "blake3", "siphash", "poly1305"]
+    ALLOWED_LABELS = ["baseline", "blake3", "siphash", "halfsiphash", "poly1305"]
 
     parser = argparse.ArgumentParser(description="Collect ping RTT data and save to a labeled file.")
     parser.add_argument("label",
