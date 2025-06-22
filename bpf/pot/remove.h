@@ -52,24 +52,27 @@ static __always_inline int remove_pot_tlv(struct xdp_md *ctx)
 
     bpf_printk("[seg6_pot_tlv][*] TLV successfully validated");
 
-    __u32 offset = tlv_hdr_offset(srh);
-    if (data + offset + POT_TLV_WIRE_LEN > end) {
+    __u32 segment_size = calc_segment_size(srh, end);
+    if (segment_size == 0) return -1;
+
+    __u32 tlv_offset = SRH_HDR_OFFSET + SRH_FIXED_HDR_LEN + (IPV6_LEN * (__u32)segment_size);
+    if (data + tlv_offset + POT_TLV_WIRE_LEN > end) {
         bpf_printk("[seg6_pot_tlv][-] packet too short to remove TLV?");
         return -1;
     }
 
-    if (offset >= xdp_len) {
+    if (tlv_offset >= xdp_len) {
         bpf_printk("[seg6_pot_tlv][-] Invalid offset to remove TLV");
         return -1;
     }
 
-    __u32 max_shift = xdp_len - (offset + POT_TLV_WIRE_LEN);
+    __u32 max_shift = xdp_len - (tlv_offset + POT_TLV_WIRE_LEN);
     if (max_shift > MAX_PAYLOAD_SHIFT_LEN)
         max_shift = MAX_PAYLOAD_SHIFT_LEN;
 
 #pragma clang loop unroll(disable)
     for (__u32 i = 0; i < max_shift; ++i) {
-        void *tail_ptr = data + offset + i;
+        void *tail_ptr = data + tlv_offset + i;
         void *head_ptr = tail_ptr + POT_TLV_WIRE_LEN;
 
         if (head_ptr + 1 > end) {

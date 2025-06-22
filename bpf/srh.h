@@ -12,7 +12,6 @@
 #define HDR_EXT_LEN 0 // HDR Routing header extenstion length
 #define SRH_NEXT_HEADER 43 // SRH next header value per RFC 8754
 #define SRH_ROUTING_HEADER_TYPE 4 // SRv6 Routing type flag
-#define SRH_MAX_ALLOWED_SEGMENTS 10 // SRv6 Max allowed segments
 
 /*
             RFC 8754 - IPv6 Segment Routing Header (SRH)
@@ -69,7 +68,7 @@ static __always_inline int srh_hdr_cb(struct srh *srh, void *end)
 
 static __always_inline __u32 tlv_hdr_offset(struct srh *srh)
 {
-    return ETH_HDR_LEN + IPV6_HDR_LEN + srh_hdr_len(srh);
+    return ETH_HDR_LEN + IPV6_HDR_LEN + SRH_FIXED_HDR_LEN + srh_hdr_len(srh);
 }
 
 static __always_inline int seg6_first_sid(struct srh *srh)

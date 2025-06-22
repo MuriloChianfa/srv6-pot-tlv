@@ -11,9 +11,10 @@
 #define ETH_HDR_LEN sizeof(struct ethhdr) // L2 header length
 #define IPV6_HDR_LEN sizeof(struct ipv6hdr) // IPv6 header length
 #define SRH_FIXED_HDR_LEN sizeof(struct srh) // SRv6 minimal header length
+#define SRH_HDR_LEN(s) (SRH_FIXED_HDR_LEN + (IPV6_LEN * s))
 
 #define HDR_BYTE_SIZE 8
-#define MAX_PAYLOAD_SHIFT_LEN 512
+#define MAX_PAYLOAD_SHIFT_LEN 1500 // TODO RFC2675
 
 #define ETH_HDR_OFFSET 0
 #define HDR_ADDING_OFFSET HDR_BYTE_SIZE

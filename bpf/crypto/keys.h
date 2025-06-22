@@ -9,6 +9,7 @@
 
 #include "srh.h"
 #include "tlv.h"
+#include "sid.h"
 
 #define SEG6_KEY_LEN 32
 #define SEG6_MAX_KEYS SRH_MAX_ALLOWED_SEGMENTS
@@ -27,8 +28,8 @@ struct {
 
 static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void *end)
 {
-    __u32 segment_id_size = srh_hdr_len(srh) / IPV6_LEN;
-    if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_id_size)) > end) {
+    __u32 segment_size = srh_hdr_len(srh) / IPV6_LEN;
+    if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_size)) > end) {
         bpf_printk("[seg6_pot_tlv][-] SRH segments out-of-bounds");
         return -1;
     }
@@ -36,7 +37,7 @@ static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void
 #pragma clang loop unroll(disable)
     for (__s16 i = SEG6_MAX_KEYS; i >= 0; i--) {
         if (i < 0) i = 0;
-        if ((__u32)i >= segment_id_size) continue;
+        if ((__u32)i >= segment_size) continue;
 
         __u32 segment_offset = SRH_FIXED_HDR_LEN + (IPV6_LEN * (__u32)i);
         if ((void *)((__u8 *)srh + segment_offset + IPV6_LEN) > end) {
@@ -63,15 +64,15 @@ static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void
 
 static __always_inline int compute_witness_once(struct pot_tlv *tlv, struct srh *srh, void *end)
 {
-    __u32 segment_id_size = srh_hdr_len(srh) / IPV6_LEN;
-    if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_id_size)) > end) {
+    __u32 segment_size = srh_hdr_len(srh) / IPV6_LEN;
+    if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_size)) > end) {
         bpf_printk("[seg6_pot_tlv][-] SRH segments out-of-bounds");
         return -1;
     }
 
     __u32 idx = srh->last_entry - srh->segments_left;
     idx = srh->last_entry - idx;
-    if (idx < 0 || idx > segment_id_size)
+    if (idx < 0 || idx > segment_size)
         return -1;
 
     __u32 segment_offset = SRH_FIXED_HDR_LEN + (IPV6_LEN * idx);
