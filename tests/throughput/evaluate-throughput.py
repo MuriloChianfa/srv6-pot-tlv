@@ -68,10 +68,6 @@ if __name__ == "__main__":
         ax.scatter(mx, i, marker='D', color='blue', s=45, zorder=3, label='Bandwidth' if i == 1 else "")
         ax.text(mx + 35, i, f"{mx:.2f} Mbps", va='center', ha='left', fontsize=10, fontweight='bold')
 
-    max_handle = Line2D([0], [0], marker='D', color='w', markerfacecolor='blue', markersize=8, label='Bandwidth')
-    leg2 = ax.legend(handles=[max_handle], loc='upper right', frameon=True, title_fontsize=13, fontsize=12)
-    ax.add_artist(leg2)
-
     ax.xaxis.grid(True, linestyle='--', linewidth=0.7, alpha=0.7)
     ax.set_axisbelow(True)
 

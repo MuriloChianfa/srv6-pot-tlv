@@ -105,7 +105,7 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 ## DEMO scenario
 
 <blockquote style="margin-bottom: 2px;">SRv6 Domain: VRF 10 table local, IPv6 Network 2001:db8::ff::/48</blockquote>
-<blockquote style="margin-top: 0; margin-bottom: 6px;">SRv6 Setup: R1 and R6 Action End.DT6, R2 and R3 Action End</blockquote>
+<blockquote style="margin-top: 0; margin-bottom: 6px;">SRv6 Setup: R1 and R4 Action End.DT6, R2, R3, and R5 Action End</blockquote>
 
 <div align="center"><img src="./topology/qemu-virtual-srv6.png" /></div>
 
