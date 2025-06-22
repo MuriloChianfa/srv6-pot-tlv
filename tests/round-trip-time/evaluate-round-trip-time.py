@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "BLAKE3", "Poly1305"]
     data_files = [os.path.join(script_dir, f"rtt_data_{label}.txt") for label in labels]
 
-    plot_filename = "rtt_comparison_boxplot.png"
+    plot_filename = "round-trip-time.png"
     plot_title = "Round-Trip Time Comparison For Each PoT TLV Crypto Algorithm"
     y_axis_label = "Round-Trip Time (ms)"
 
@@ -58,6 +59,15 @@ if __name__ == "__main__":
     for patch, color in zip(box['boxes'], colors[:len(all_data)]):
         patch.set_facecolor(color)
         patch.set_alpha(0.8)
+
+    ax = plt.gca()
+    y_min, y_max = ax.get_ylim()
+    y_offset = (y_max - y_min) * 0.02
+
+    for i, (median_line, dataset) in enumerate(zip(box['medians'], all_data), start=1):
+        median_val = np.median(dataset)
+        median_y = median_line.get_ydata()[0]
+        ax.text(i, median_y + y_offset, f"{median_val:.2f} ms", ha='center', va='bottom', fontsize=9, fontweight='bold')
 
     plt.title(plot_title, fontsize=16, fontweight='bold')
     plt.ylabel(y_axis_label, fontsize=14)

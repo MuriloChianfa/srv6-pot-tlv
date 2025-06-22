@@ -45,6 +45,7 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   # Compile all algorithms
   make blake3
   make siphash
+  make halfsiphash
   make poly1305
 
   # The artefacts will be generated here
@@ -98,7 +99,8 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 <blockquote style="margin-bottom: 2px;">Environment: x86_64 Xeon E5-2683 v4 @ 2.10GHz, 128G RAM, Ubuntu 24.04</blockquote>
 <blockquote style="margin-top: 0; margin-bottom: 6px;">Tools: Clang 18.1.3, Kernel 6.11.0-19-generic, Realtek RTL8411 PCI Gigabit Ethernet</blockquote>
 
-<div align="center"><img src="./tests/round-trip-time/rtt_comparison_boxplot.png" /></div>
+<div align="center"><img src="./tests/round-trip-time/round-trip-time.png" /></div>
+<div align="center"><img src="./tests/throughput/throughput.png" /></div>
 
 ## DEMO scenario
 

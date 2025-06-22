@@ -69,3 +69,5 @@ output/
 libbpfgo/
 tests/round-trip-time/rtt_data/
 tests/round-trip-time/rtt_data.zip
+tests/throughput/throughput_data/
+tests/throughput/throughput_data.zip

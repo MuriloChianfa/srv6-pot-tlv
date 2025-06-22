@@ -17,12 +17,12 @@ rm -r rtt_data/ rtt_data.zip
 
 ```bash
 # Run the evaluation
-python3 evaluate-using-box-plot.py
+python3 evaluate-round-trip-time.py
 
 # Then see the results
-open rtt_comparison_boxplot.png
+open round-trip-time.png
 ```
 
 3. Preliminary results
 
-<div align="center"><img src="./rtt_comparison_boxplot.png" /></div>
+<div align="center"><img src="./round-trip-time.png" /></div>

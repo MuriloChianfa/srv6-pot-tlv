@@ -24,7 +24,9 @@ ansible-playbook -i inventory playbook.yml
 # Shutdown all VMs
 ./kill-qemu.sh
 
-# Resize all routers images
+# Resize all host and routers images
+qemu-img resize h1/h1.img +10G
+qemu-img resize h2/h2.img +10G
 qemu-img resize r1/r1.img +10G
 qemu-img resize r2/r2.img +10G
 qemu-img resize r3/r3.img +10G
@@ -36,4 +38,11 @@ qemu-img resize r4/r4.img +10G
 ```bash
 # Install packages for bpftool in each router
 apt install linux-image-$(uname -r) linux-headers-$(uname -r) linux-tools-$(uname -r)
+```
+
+## For host-1
+
+```bash
+# Install packages to run evaluation
+apt install iperf3
 ```
