@@ -46,6 +46,7 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   make blake3
   make siphash
   make halfsiphash
+  make hmac-sha256
   make poly1305
 
   # The artefacts will be generated here
@@ -68,7 +69,10 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
   Examples:
     sudo ./seg6-pot-tlv --load ens5
-    sudo ./seg6-pot-tlv --sid 2001:db8:ff:1::1 --key 00112233445566778899aabbccddeeff00112233445566778899aabbccddee11
+    sudo ./seg6-pot-tlv --sid 2001:db8:ff:1::1 --key aa112233445566778899aabbccddeeff00112233445566778899aabbccddee11
+    sudo ./seg6-pot-tlv --sid 2001:db8:ff:2::1 --key bb112233445566778899aabbccddeeff00112233445566778899aabbccddee22
+    sudo ./seg6-pot-tlv --sid 2001:db8:ff:3::1 --key cc112233445566778899aabbccddeeff00112233445566778899aabbccddee33
+    sudo ./seg6-pot-tlv --sid 2001:db8:ff:4::1 --key dd112233445566778899aabbccddeeff00112233445566778899aabbccddee44
   ```
 </details>
 <details>

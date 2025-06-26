@@ -22,6 +22,9 @@
 #if POLY1305
     #include "crypto/poly1305.h"
     #define DIGEST_LEN POLY1305_TAG_LEN
+#elif HMAC_SHA256
+    #include "crypto/hmac-sha256.h"
+    #define DIGEST_LEN HMAC_SHA256_DIGEST_LEN
 #elif SIPHASH
     #include "crypto/siphash.h"
     #define DIGEST_LEN SIPHASH_WORD_LEN
@@ -62,6 +65,8 @@ static __always_inline void compute_tlv(struct pot_tlv *tlv, const __u8 key[32])
 {
 #if POLY1305
     poly1305((__u8 *)tlv->witness, (const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), key);
+#elif HMAC_SHA256
+    hmac_sha256(key, 32, (const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), (__u8 *)tlv->witness);
 #elif SIPHASH
     struct siphash_key skey;
     __builtin_memcpy(&skey, key, sizeof(struct siphash_key));
