@@ -52,6 +52,12 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
     sidlist = bpf_map_lookup_elem(&sidmap, &sidmap_key);
     if (!sidlist) return -1;
 
+    __u32 max_segments = SRH_MAX_ALLOWED_SEGMENTS;
+    if (segment_size > max_segments) {
+        bpf_printk("[seg6_pot_tlv][-] SRH segment size exceeds max allowed");
+        return -1;
+    }
+
     if (retrieve_sidlist(sidlist, srh, segment_size, end) < 0) {
         bpf_printk("[seg6_pot_tlv][-] Failed to retrieve SID list");
         return -1;

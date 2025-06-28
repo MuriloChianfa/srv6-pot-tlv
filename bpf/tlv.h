@@ -22,6 +22,9 @@
 #if POLY1305
     #include "crypto/poly1305.h"
     #define DIGEST_LEN POLY1305_TAG_LEN
+#elif HMAC_SHA1
+    #include "crypto/hmac-sha1.h"
+    #define DIGEST_LEN HMAC_SHA1_DIGEST_LEN
 #elif HMAC_SHA256
     #include "crypto/hmac-sha256.h"
     #define DIGEST_LEN HMAC_SHA256_DIGEST_LEN
@@ -65,6 +68,8 @@ static __always_inline void compute_tlv(struct pot_tlv *tlv, const __u8 key[32])
 {
 #if POLY1305
     poly1305((__u8 *)tlv->witness, (const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), key);
+#elif HMAC_SHA1
+    hmac_sha1(key, 32, (const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), (__u8 *)tlv->witness);
 #elif HMAC_SHA256
     hmac_sha256(key, 32, (const __u8 *)&tlv->nonce, sizeof(tlv->nonce) + sizeof(tlv->witness), (__u8 *)tlv->witness);
 #elif SIPHASH
@@ -84,8 +89,14 @@ static __always_inline void compute_tlv(struct pot_tlv *tlv, const __u8 key[32])
 
 static __always_inline int compare_pot_digest(const struct pot_tlv *x, const struct pot_tlv *y)
 {
-    if (__builtin_memcmp(x->witness, y->witness, DIGEST_LEN) == 0 && __builtin_memcmp(x->root, y->witness, DIGEST_LEN) == 0)
+    if (__builtin_memcmp(x->witness, y->witness, DIGEST_LEN) == 0 && __builtin_memcmp(x->root, y->witness, DIGEST_LEN) == 0) {
         return 0;
+    }
+    if (__builtin_memcmp(x->witness, y->witness, DIGEST_LEN) != 0) {
+        bpf_printk("[seg6_pot_tlv][-] Failed to compare witnesses");
+    } else if (__builtin_memcmp(x->root, y->witness, DIGEST_LEN) == 0) {
+        bpf_printk("[seg6_pot_tlv][-] Failed to compare witness with root");
+    }
     return -1;
 }
 

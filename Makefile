@@ -10,7 +10,7 @@ BUILD_DIR := cmd/build
 
 EBPF_SOURCE := seg6-pot-tlv.bpf.c
 
-ALGORITHMS := POLY1305 SIPHASH BLAKE3 HALFSIPHASH HMAC_SHA256
+ALGORITHMS := POLY1305 SIPHASH BLAKE3 HALFSIPHASH HMAC_SHA1 HMAC_SHA256
 ALGO_FLAGS := $(foreach algo,$(ALGORITHMS),-D$(algo))
 ALGO_NAMES := $(foreach algo,$(ALGORITHMS),$(shell echo $(algo) | tr '[:upper:]' '[:lower:]'))
 
@@ -37,7 +37,7 @@ GO_BUILD_CMD = go build -tags netgo -ldflags $(CGO_EXTLDFLAGS)
 
 $(shell mkdir -p $(BUILD_DIR))
 
-all: reset $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-blake3 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-poly1305 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-siphash $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-halfsiphash $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha256 tmpclean
+all: reset $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-blake3 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-poly1305 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-siphash $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-halfsiphash $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha1 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha256 tmpclean
 
 $(LIBBPF_OBJ):
 	@if [ ! -d "libbpfgo" ]; then \
@@ -90,6 +90,11 @@ $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-halfsiphash: ALGO_FLAG = -DHALFSIPHASH
 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-halfsiphash: ALGO_NAME = halfsiphash
 $(BUILD_DIR)/seg6_pot_tlv_halfsiphash.o: ALGO_FLAG = -DHALFSIPHASH
 
+hmac-sha1: $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha1
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha1: ALGO_FLAG = -DHMAC_SHA1
+$(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha1: ALGO_NAME = hmac-sha1
+$(BUILD_DIR)/seg6_pot_tlv_hmac-sha1.o: ALGO_FLAG = -DHMAC_SHA1
+
 hmac-sha256: $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha256
 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha256: ALGO_FLAG = -DHMAC_SHA256
 $(BUILD_DIR)/$(OUTPUT_BIN_PREFIX)-hmac-sha256: ALGO_NAME = hmac-sha256
@@ -112,4 +117,4 @@ tmpclean:
 	@rm -rf $(BUILD_DIR)/seg6_pot_tlv.o
 
 .DEFAULT_GOAL := default_name
-.PHONY: all all_algorithms clean distclean poly1305 siphash blake3 halfsiphash hmac-sha256 default_name
+.PHONY: all all_algorithms clean distclean poly1305 siphash blake3 halfsiphash hmac-sha1 hmac-sha256 default_name

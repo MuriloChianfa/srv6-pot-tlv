@@ -14,15 +14,15 @@ apt install wget qemu-system ansible sshpass bridge-utils
 wget https://cloud-images.ubuntu.com/releases/noble/release-20240423/ubuntu-24.04-server-cloudimg-amd64.img -O base.img
 
 # Run the script to create and start the topology
-./topology.sh
+./scripts/topology.sh
 
 # ! Wait until all nodes are successfully booted
 
 # Run the Ansible playbook to setup the if addresses and SRv6 domain
-ansible-playbook -i inventory playbook.yml
+ansible-playbook -i inventory scripts/ansible/topology.yml
 
 # Shutdown all VMs
-./kill-qemu.sh
+./scripts/kill-qemu.sh
 
 # Resize all host and routers images
 qemu-img resize h1/h1.img +10G

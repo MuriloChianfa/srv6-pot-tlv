@@ -66,13 +66,14 @@ if __name__ == "__main__":
     DEFAULT_TARGET_IP = "2001:db8:60:1::2"
     DEFAULT_DURATION = 10
     DEFAULT_NUM_TESTS = 5
-    ALLOWED_LABELS = ["baseline", "blake3", "siphash", "halfsiphash", "poly1305"]
+    ALLOWED_LABELS = ["baseline", "blake3", "siphash", "halfsiphash", "poly1305", "hmac-sha1"]
     SIZES = {
         "baseline": 1308, # mss 1356
         "blake3": 1228, # mss 1276
+        "hmac-sha1": 1252, # mss 1300
         "siphash": 1276, # mss 1324
         "halfsiphash": 1316, # mss 1332
-        "poly1305": 1260, # 1308
+        "poly1305": 1260, # mss 1308
     }
 
     parser = argparse.ArgumentParser(description="Collect iperf3 throughput data and save to a labeled file.")

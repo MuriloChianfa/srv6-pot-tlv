@@ -3,6 +3,9 @@
 
 #include <linux/types.h>
 
+#include <bpf/bpf_endian.h>
+#include <bpf/bpf_helpers.h>
+
 #define HMAC_SHA256_BLOCK_SIZE 64
 #define HMAC_SHA256_DIGEST_LEN 32
 
@@ -10,8 +13,33 @@
 struct sha256 {
     __u32 state[8];
     __u64 count;
-    __u8 buf[64];
+    __u8 buf[HMAC_SHA256_BLOCK_SIZE];
 };
+
+struct hmac {
+    __u8 k0[HMAC_SHA256_BLOCK_SIZE];
+    __u8 ipad[HMAC_SHA256_BLOCK_SIZE];
+    __u8 opad[HMAC_SHA256_BLOCK_SIZE];
+    __u8 tmp[HMAC_SHA256_DIGEST_LEN];
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, struct hmac);
+} hmacmap SEC(".maps");
+
+struct word {
+    __u32 w[HMAC_SHA256_BLOCK_SIZE];
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, struct word);
+} wordmap SEC(".maps");
 
 /* Rotate right (32-bit) */
 #define ROTR32(x, r) (((x) >> (r)) | ((x) << (32 - (r))))
@@ -48,26 +76,28 @@ static const __u32 K256[64] = {
 
 static __always_inline void sha256_init(struct sha256 *c)
 {
-    c->state[0] = 0x6a09e667ul;
-    c->state[1] = 0xbb67ae85ul;
-    c->state[2] = 0x3c6ef372ul;
-    c->state[3] = 0xa54ff53aul;
-    c->state[4] = 0x510e527ful;
-    c->state[5] = 0x9b05688cul;
-    c->state[6] = 0x1f83d9abul;
-    c->state[7] = 0x5be0cd19ul;
-
+    c->state[0]=0x6a09e667ul; c->state[1]=0xbb67ae85ul;
+    c->state[2]=0x3c6ef372ul; c->state[3]=0xa54ff53aul;
+    c->state[4]=0x510e527ful; c->state[5]=0x9b05688cul;
+    c->state[6]=0x1f83d9abul; c->state[7]=0x5be0cd19ul;
     c->count = 0;
 }
 
 static __always_inline void sha256_compress(struct sha256 *c, const __u8 data[64])
 {
-    __s64 w[64], A, B, C, D, E, F, G, H, T1, T2;
+    __u32 zero = 0;
+    struct word *word = bpf_map_lookup_elem(&wordmap, &zero);
 
-#pragma clang loop unroll(full)
-    for (__u32 i = 0; i < 16; i++)
-        w[i] = (data[4*i] << 24) | (data[4*i+1] << 16)
-           | (data[4*i+2] << 8)  | (data[4*i+3]);
+    __u32 *w = word->w;
+    __u32 A, B, C, D, E, F, G, H, T1, T2;
+
+#pragma clang loop unroll(disable)
+    for (__u32 i = 0; i < 16; i++) {
+        w[i]  = ((__u32)data[4*i]   << 24)
+              | ((__u32)data[4*i+1] << 16)
+              | ((__u32)data[4*i+2] <<  8)
+              | ((__u32)data[4*i+3]);
+    }
 #pragma clang loop unroll(disable)
     for (__u32 i = 16; i < 64; i++)
         w[i] = THETA1(w[i-2]) + w[i-7] + THETA0(w[i-15]) + w[i-16];
@@ -87,18 +117,15 @@ static __always_inline void sha256_compress(struct sha256 *c, const __u8 data[64
         A = T1 + T2;
     }
 
-    c->state[0] += A;
-    c->state[1] += B;
-    c->state[2] += C;
-    c->state[3] += D;
-    c->state[4] += E;
-    c->state[5] += F;
-    c->state[6] += G;
-    c->state[7] += H;
+    c->state[0] += A; c->state[1] += B;
+    c->state[2] += C; c->state[3] += D;
+    c->state[4] += E; c->state[5] += F;
+    c->state[6] += G; c->state[7] += H;
 }
 
 static __always_inline void sha256_update(struct sha256 *c, const __u8 *data, __u32 len)
 {
+    __u32 i = 0;
     __u32 idx = c->count & 63;
     __u32 part = 64 - idx;
 
@@ -106,21 +133,19 @@ static __always_inline void sha256_update(struct sha256 *c, const __u8 *data, __
 
     if (len >= part) {
 #pragma clang loop unroll(disable)
-        for (__u32 i = 0; i < part; i++)
+        for (i = 0; i < len; i++)
             c->buf[idx + i] = data[i];
-
         sha256_compress(c, c->buf);
         data += part; len -= part;
 
 #pragma clang loop unroll(disable)
-        for (; len >= 64; len -= 64, data += 64)
+        for (i = 0; len >= 64; len -= 64, data += 64)
             sha256_compress(c, data);
-
         idx = 0;
     }
 
 #pragma clang loop unroll(disable)
-    for (__u32 i = 0; i < len; i++)
+    for (i = 0; i < len; i++)
         c->buf[idx + i] = data[i];
 }
 
@@ -133,13 +158,13 @@ static __always_inline void sha256_final(struct sha256 *c, __u8 digest[32])
 
     sha256_update(c, pad, padlen);
 
-#pragma clang loop unroll(full)
+#pragma clang loop unroll(disable)
     for (__u32 i = 0; i < 8; i++)
         c->buf[56 + i] = (bitlen >> (56 - 8*i)) & 0xFF;
 
     sha256_compress(c, c->buf);
 
-#pragma clang loop unroll(full)
+#pragma clang loop unroll(disable)
     for (__u32 i = 0; i < 8; i++) {
         __u32 t = c->state[i];
 
@@ -152,18 +177,21 @@ static __always_inline void sha256_final(struct sha256 *c, __u8 digest[32])
 
 static __always_inline void hmac_sha256(const __u8 *key, __u32 keylen, const __u8 *msg, __u32 msglen, __u8 out[HMAC_SHA256_DIGEST_LEN])
 {
-    __u8 k0[HMAC_SHA256_BLOCK_SIZE];
-    __u8 tmp[HMAC_SHA256_DIGEST_LEN];
-    __u8 ipad[HMAC_SHA256_BLOCK_SIZE];
-    __u8 opad[HMAC_SHA256_BLOCK_SIZE];
+    __u32 zero = 0;
+    struct hmac *hmac = bpf_map_lookup_elem(&hmacmap, &zero);
+
+    __u8 *k0 = hmac->k0;
+    __u8 *tmp = hmac->tmp;
+    __u8 *ipad = hmac->ipad;
+    __u8 *opad = hmac->opad;
 
     struct sha256 sha256;
 
-#pragma clang loop unroll(full)
+#pragma clang loop unroll(disable)
     for (__u32 i = 0; i < HMAC_SHA256_BLOCK_SIZE; i++)
         k0[i] = (i < keylen ? key[i] : 0);
 
-#pragma clang loop unroll(full)
+#pragma clang loop unroll(disable)
     for (__u32 i = 0; i < HMAC_SHA256_BLOCK_SIZE; i++) {
         ipad[i] = k0[i] ^ 0x36;
         opad[i] = k0[i] ^ 0x5c;

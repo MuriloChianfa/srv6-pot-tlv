@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ansible-playbook -i inventory setup1.yml
+ansible-playbook -i inventory cleanup.yml
 ssh -p 2211 h1@127.0.0.1 "python3 collect-round-trip-time.py baseline"
 ssh -p 2211 h1@127.0.0.1 "python3 collect-throughput.py baseline"
 
@@ -19,6 +19,10 @@ ssh -p 2211 h1@127.0.0.1 "python3 collect-throughput.py halfsiphash"
 ./setup.sh poly1305
 ssh -p 2211 h1@127.0.0.1 "python3 collect-round-trip-time.py poly1305"
 ssh -p 2211 h1@127.0.0.1 "python3 collect-throughput.py poly1305"
+
+./setup.sh hmac-sha1
+ssh -p 2211 h1@127.0.0.1 "python3 collect-round-trip-time.py hmac-sha1"
+ssh -p 2211 h1@127.0.0.1 "python3 collect-throughput.py hmac-sha1"
 
 ssh -p 2211 h1@127.0.0.1 "mkdir -p rtt_data/"
 ssh -p 2211 h1@127.0.0.1 "mkdir -p throughput_data/"

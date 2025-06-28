@@ -25,9 +25,9 @@ def load_rtt_data(filename):
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    labels = ["baseline", "halfsiphash", "siphash", "blake3", "poly1305"]
-    pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "BLAKE3", "Poly1305"]
-    data_files = [os.path.join(script_dir, f"rtt_data_{label}.txt") for label in labels]
+    labels = ["baseline", "halfsiphash", "siphash", "blake3", "hmac-sha1", "poly1305"]
+    pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "BLAKE3", "HMAC-SHA1", "Poly1305"]
+    data_files = [os.path.join(script_dir + '/results', f"rtt_data_{label}.txt") for label in labels]
 
     plot_filename = "round-trip-time.png"
     plot_title = "Round-Trip Time Comparison For Each PoT TLV Crypto Algorithm"

@@ -46,6 +46,7 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   make blake3
   make siphash
   make halfsiphash
+  make hmac-sha1
   make hmac-sha256
   make poly1305
 
@@ -97,6 +98,17 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
   - [tests/round-trip-time/README.md](tests/round-trip-time/README.md)
 </details>
+
+## TLV Total Overhead (Using 3 SIDs)
+
+|    Algorithm    | Digest Length | TLV Overhead | IPv6+TCP | SRH (3 SIDs) | Total Overhead |     Max MSS     |
+|-----------------|---:|---------------:|-----------:|----------------:|-------------------:|----------------:|
+| **blake3**      | 32 | 16 + 2×32 = 80 | 40+20 = 60 | 8 + (16*3) = 56 | 80 + 60 + 56 = 196 | 1500–196 = 1304 |
+| **hmac-sha1**   | 20 | 16 + 2×20 = 56 | 40+20 = 60 | 8 + (16*3) = 56 | 56 + 60 + 56 = 172 | 1500–172 = 1328 |
+| **poly1305**    | 16 | 16 + 2×16 = 48 | 40+20 = 60 | 8 + (16*3) = 56 | 48 + 60 + 56 = 164 | 1500–164 = 1336 |
+| **siphash**     | 8  | 16 + 2×8 = 32  | 40+20 = 60 | 8 + (16*3) = 56 | 32 + 60 + 56 = 148 | 1500–148 = 1352 |
+| **halfsiphash** | 4  | 16 + 2×4 = 24  | 40+20 = 60 | 8 + (16*3) = 56 | 24 + 60 + 56 = 140 | 1500–140 = 1360 |
+| **baseline**    | 0  | 0              | 40+20 = 60 | 8 + (16*3) = 56 |  0 + 60 + 56 = 116 | 1500–116 = 1384 |
 
 ## Preliminary Results
 

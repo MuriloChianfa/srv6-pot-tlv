@@ -8,10 +8,10 @@ set -uo pipefail
 #
 # Topology:
 #
-#           r2 --- r3
-#            |       |
-# h1 -- r1 --- r4 --- h2
-#
+#        r2 -- r3
+#        |      |
+# h1 -- r1     r4 --- h2
+#            
 # Ensure you run this script as root.
 
 # -------------------------

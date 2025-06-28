@@ -1,5 +1,6 @@
 import os
 import sys
+import itertools
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, AutoMinorLocator
 from matplotlib.lines import Line2D
@@ -25,12 +26,13 @@ def load_throughput_data(filename):
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    labels = ["baseline", "halfsiphash", "siphash", "poly1305", "blake3"]
-    pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "Poly1305", "BLAKE3"]
-    data_files = [os.path.join(script_dir, f"throughput_data_{label}.txt") for label in labels]
+    labels = ["baseline", "halfsiphash", "siphash", "poly1305", "blake3", "hmac-sha1"]
+    pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "Poly1305", "BLAKE3", "HMAC-SHA1"]
+    data_files = [os.path.join(script_dir + '/results', f"throughput_data_{label}.txt") for label in labels]
 
     all_data = []
     for fn in data_files:
+        print(f"Loading data from {fn}...")
         data = load_throughput_data(fn)
         if data:
             all_data.append(data)
@@ -39,12 +41,17 @@ if __name__ == "__main__":
 
     if not all_data:
         sys.exit("Error: No valid throughput data loaded. Cannot generate plot.")
+        sys.exit(1)
+    elif len(all_data) < len(data_files):
+        print(f"Warning: Plotting with {len(all_data)} datasets instead of {len(data_files)} due to loading errors.", file=sys.stderr)
 
+    print("Generating box plot...")
     plt.style.use('classic')
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    cmap = plt.get_cmap('tab10')
-    colors = [cmap(i) for i in range(len(all_data))]
+    colors = ['#6c87bb', '#79bc88', '#ce6e76', '#006faf', '#9686be', '#cdc089']
+    if len(all_data) > len(colors):
+        colors = list(itertools.islice(itertools.cycle(colors), len(all_data)))
 
     parts = ax.violinplot(all_data, vert=False, showextrema=False, widths=0.9)
 
@@ -81,3 +88,4 @@ if __name__ == "__main__":
     out_path = os.path.join(script_dir, "throughput.png")
     plt.savefig(out_path, dpi=300)
     print(f"Scientific violin plot saved to {out_path}")
+    print("Evaluation complete.")
