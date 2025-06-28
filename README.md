@@ -47,7 +47,6 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   make siphash
   make halfsiphash
   make hmac-sha1
-  make hmac-sha256
   make poly1305
 
   # The artefacts will be generated here
@@ -99,83 +98,12 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   - [tests/round-trip-time/README.md](tests/round-trip-time/README.md)
 </details>
 
-## TLV Total Overhead (Using 3 SIDs)
-
-<table>
-  <thead>
-    <tr>
-      <th>Algorithm</th>
-      <th>Digest Length</th>
-      <th>TLV Overhead</th>
-      <th>IPv6+TCP</th>
-      <th>SRH (3 SIDs)</th>
-      <th>Total Overhead</th>
-      <th>Max MSS</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>blake3</strong></td>
-      <td>32</td>
-      <td>16 + 2×32 = 80</td>
-      <td>40+20 = 60</td>
-      <td>8 + (16*3) = 56</td>
-      <td>80 + 60 + 56 = 196</td>
-      <td>1500–196 = 1304</td>
-    </tr>
-    <tr>
-      <td><strong>hmac-sha1</strong></td>
-      <td>20</td>
-      <td>16 + 2×20 = 56</td>
-      <td>40+20 = 60</td>
-      <td>8 + (16*3) = 56</td>
-      <td>56 + 60 + 56 = 172</td>
-      <td>1500–172 = 1328</td>
-    </tr>
-    <tr>
-      <td><strong>poly1305</strong></td>
-      <td>16</td>
-      <td>16 + 2×16 = 48</td>
-      <td>40+20 = 60</td>
-      <td>8 + (16*3) = 56</td>
-      <td>48 + 60 + 56 = 164</td>
-      <td>1500–164 = 1336</td>
-    </tr>
-    <tr>
-      <td><strong>siphash</strong></td>
-      <td>8</td>
-      <td>16 + 2×8 = 32</td>
-      <td>40+20 = 60</td>
-      <td>8 + (16*3) = 56</td>
-      <td>32 + 60 + 56 = 148</td>
-      <td>1500–148 = 1352</td>
-    </tr>
-    <tr>
-      <td><strong>halfsiphash</strong></td>
-      <td>4</td>
-      <td>16 + 2×4 = 24</td>
-      <td>40+20 = 60</td>
-      <td>8 + (16*3) = 56</td>
-      <td>24 + 60 + 56 = 140</td>
-      <td>1500–140 = 1360</td>
-    </tr>
-    <tr>
-      <td><strong>baseline</strong></td>
-      <td>0</td>
-      <td>0</td>
-      <td>40+20 = 60</td>
-      <td>8 + (16*3) = 56</td>
-      <td>0 + 60 + 56 = 116</td>
-      <td>1500–116 = 1384</td>
-    </tr>
-  </tbody>
-</table>
-
 ## Preliminary Results
 
 <blockquote style="margin-bottom: 2px;">Environment: x86_64 Xeon E5-2683 v4 @ 2.10GHz, 128G RAM, Ubuntu 24.04</blockquote>
 <blockquote style="margin-top: 0; margin-bottom: 6px;">Tools: Clang 18.1.3, Kernel 6.11.0-19-generic, Realtek RTL8411 PCI Gigabit Ethernet</blockquote>
 
+<div align="center"><img src="./tests/debug/srv6-pot-tlv-overhead.png" /></div>
 <div align="center"><img src="./tests/round-trip-time/round-trip-time.png" /></div>
 <div align="center"><img src="./tests/throughput/throughput.png" /></div>
 
