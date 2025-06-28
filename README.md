@@ -101,14 +101,75 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
 
 ## TLV Total Overhead (Using 3 SIDs)
 
-|    Algorithm    | Digest Length | TLV Overhead | IPv6+TCP | SRH (3 SIDs) | Total Overhead |     Max MSS     |
-|-----------------|---:|---------------:|-----------:|----------------:|-------------------:|----------------:|
-| **blake3**      | 32 | 16 + 2×32 = 80 | 40+20 = 60 | 8 + (16*3) = 56 | 80 + 60 + 56 = 196 | 1500–196 = 1304 |
-| **hmac-sha1**   | 20 | 16 + 2×20 = 56 | 40+20 = 60 | 8 + (16*3) = 56 | 56 + 60 + 56 = 172 | 1500–172 = 1328 |
-| **poly1305**    | 16 | 16 + 2×16 = 48 | 40+20 = 60 | 8 + (16*3) = 56 | 48 + 60 + 56 = 164 | 1500–164 = 1336 |
-| **siphash**     | 8  | 16 + 2×8 = 32  | 40+20 = 60 | 8 + (16*3) = 56 | 32 + 60 + 56 = 148 | 1500–148 = 1352 |
-| **halfsiphash** | 4  | 16 + 2×4 = 24  | 40+20 = 60 | 8 + (16*3) = 56 | 24 + 60 + 56 = 140 | 1500–140 = 1360 |
-| **baseline**    | 0  | 0              | 40+20 = 60 | 8 + (16*3) = 56 |  0 + 60 + 56 = 116 | 1500–116 = 1384 |
+<table>
+  <thead>
+    <tr>
+      <th>Algorithm</th>
+      <th>Digest Length</th>
+      <th>TLV Overhead</th>
+      <th>IPv6+TCP</th>
+      <th>SRH (3 SIDs)</th>
+      <th>Total Overhead</th>
+      <th>Max MSS</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>blake3</strong></td>
+      <td>32</td>
+      <td>16 + 2×32 = 80</td>
+      <td>40+20 = 60</td>
+      <td>8 + (16*3) = 56</td>
+      <td>80 + 60 + 56 = 196</td>
+      <td>1500–196 = 1304</td>
+    </tr>
+    <tr>
+      <td><strong>hmac-sha1</strong></td>
+      <td>20</td>
+      <td>16 + 2×20 = 56</td>
+      <td>40+20 = 60</td>
+      <td>8 + (16*3) = 56</td>
+      <td>56 + 60 + 56 = 172</td>
+      <td>1500–172 = 1328</td>
+    </tr>
+    <tr>
+      <td><strong>poly1305</strong></td>
+      <td>16</td>
+      <td>16 + 2×16 = 48</td>
+      <td>40+20 = 60</td>
+      <td>8 + (16*3) = 56</td>
+      <td>48 + 60 + 56 = 164</td>
+      <td>1500–164 = 1336</td>
+    </tr>
+    <tr>
+      <td><strong>siphash</strong></td>
+      <td>8</td>
+      <td>16 + 2×8 = 32</td>
+      <td>40+20 = 60</td>
+      <td>8 + (16*3) = 56</td>
+      <td>32 + 60 + 56 = 148</td>
+      <td>1500–148 = 1352</td>
+    </tr>
+    <tr>
+      <td><strong>halfsiphash</strong></td>
+      <td>4</td>
+      <td>16 + 2×4 = 24</td>
+      <td>40+20 = 60</td>
+      <td>8 + (16*3) = 56</td>
+      <td>24 + 60 + 56 = 140</td>
+      <td>1500–140 = 1360</td>
+    </tr>
+    <tr>
+      <td><strong>baseline</strong></td>
+      <td>0</td>
+      <td>0</td>
+      <td>40+20 = 60</td>
+      <td>8 + (16*3) = 56</td>
+      <td>0 + 60 + 56 = 116</td>
+      <td>1500–116 = 1384</td>
+    </tr>
+  </tbody>
+</table>
 
 ## Preliminary Results
 
