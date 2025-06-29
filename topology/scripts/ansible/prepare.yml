@@ -1,0 +1,119 @@
+---
+- name: Prepare all SRv6 nodes
+  hosts: all
+  become: yes
+  tasks:
+    # -------------------------------------------------------------------------
+    #  DNS CONFIGURATION FOR ALL NODES
+    # -------------------------------------------------------------------------
+    - name: Ensure /etc/resolv.conf exists and is owned by root
+      file:
+        path: /etc/resolv.conf
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Disable systemd-resolved service
+      systemd:
+        name: systemd-resolved
+        state: stopped
+        enabled: no
+      ignore_errors: true
+
+    - name: Remove the symbolic link to /etc/resolv.conf if exists
+      file:
+        path: /etc/resolv.conf
+        state: absent
+      ignore_errors: true
+
+    - name: Create a new resolv.conf file with Google DNS
+      copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 8.8.8.8
+          nameserver 1.1.1.1
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Ensure /etc/resolv.conf is not managed by systemd-resolved
+      file:
+        path: /etc/resolv.conf
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart the network to apply the new DNS
+      ansible.builtin.command: systemctl restart systemd-networkd
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    # -------------------------------------------------------------------------
+    #  ROUTERS BPF PACKAGES INSTALLATION
+    # -------------------------------------------------------------------------
+    - name: Get the current kernel version
+      command: uname -r
+      register: uname_result
+
+    - name: Install linux image, headers, and tools for the current kernel version
+      apt:
+        name:
+          - "tcpdump"
+          - "linux-headers-{{ uname_result.stdout }}"
+          - "linux-tools-{{ uname_result.stdout }}"
+          - "linux-tools-{{ uname_result.stdout }}"
+        state: present
+      when: inventory_hostname in ['r1', 'r2', 'r3', 'r4']
+
+    # -------------------------------------------------------------------------
+    #  HOSTS EVALUATION PACKAGES INSTALLATION
+    # -------------------------------------------------------------------------
+    - name: Install iperf3 on h1 or h2
+      apt:
+        name: iperf3
+        state: present
+      when: inventory_hostname in ['h1', 'h2']
+
+    - name: Create systemd service for iperf3 server
+      copy:
+        dest: /etc/systemd/system/iperf3-server.service
+        content: |
+          [Unit]
+          Description=iPerf3 server
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/iperf3 -s
+          Restart=always
+          User=nobody
+          Group=nogroup
+
+          [Install]
+          WantedBy=multi-user.target
+      when: inventory_hostname in ['h1', 'h2']
+
+    - name: Enable and start iperf3 server service
+      systemd:
+        name: iperf3-server
+        state: started
+        enabled: yes
+      when: inventory_hostname in ['h1', 'h2']
+
+    - name: Copy evaluation round-trip-time.py to the hosts
+      copy:
+        src: collect-round-trip-time.py
+        dest: collect-round-trip-time.py
+        mode: '0755'
+      when: inventory_hostname in ['h1', 'h2']
+
+    - name: Copy evaluation throughput.py to the hosts
+      copy:
+        src: collect-throughput.py
+        dest: collect-throughput.py
+        mode: '0755'
+      when: inventory_hostname in ['h1', 'h2']

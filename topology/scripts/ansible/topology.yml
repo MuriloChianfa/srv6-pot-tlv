@@ -43,6 +43,8 @@
           ansible.builtin.shell: |
             for intf in ens4 ens5 ens6; do
               ip link set dev $intf up
+              echo "f" > "/sys/class/net/$intf/queues/rx-0/rps_cpus"
+              ethtool -K "$intf" rx on tx on gso on tso on gro on lro on
             done
 
     - name: Configure interfaces for r2
@@ -56,6 +58,8 @@
           ansible.builtin.shell: |
             for intf in ens4 ens5; do
               ip link set dev $intf up
+              echo "f" > "/sys/class/net/$intf/queues/rx-0/rps_cpus"
+              ethtool -K "$intf" rx on tx on gso on tso on gro on lro on
             done
 
     - name: Configure interfaces for r3
@@ -69,6 +73,8 @@
           ansible.builtin.shell: |
             for intf in ens4 ens5; do
               ip link set dev $intf up
+              echo "f" > "/sys/class/net/$intf/queues/rx-0/rps_cpus"
+              ethtool -K "$intf" rx on tx on gso on tso on gro on lro on
             done
 
     - name: Configure interfaces for r4
@@ -84,6 +90,8 @@
           ansible.builtin.shell: |
             for intf in ens4 ens5 ens6; do
               ip link set dev $intf up
+              echo "f" > "/sys/class/net/$intf/queues/rx-0/rps_cpus"
+              ethtool -K "$intf" rx on tx on gso on tso on gro on lro on
             done
 
     #########################################################################
@@ -292,6 +300,10 @@
       block:
         - name: Bring up ens4 on h1
           ansible.builtin.command: ip link set dev ens4 up
+        - name: Set RPS for ens4 on h1
+          ansible.builtin.command: echo "f" > /sys/class/net/ens4/queues/rx-0/rps_cpus
+        - name: Enabling offloading for ens4 on h1
+          ansible.builtin.command: ethtool -K ens4 rx on tx on gso on tso on gro on lro on
         - name: Set IPv6 address on ens4
           ansible.builtin.command: ip -6 addr add 2001:db8:10:1::2/64 dev ens4
         - name: Set default route on h1 via r1
@@ -304,6 +316,10 @@
       block:
         - name: Bring up ens4 on h2
           ansible.builtin.command: ip link set dev ens4 up
+        - name: Set RPS for ens4 on h2
+          ansible.builtin.command: echo "f" > /sys/class/net/ens4/queues/rx-0/rps_cpus
+        - name: Enabling offloading for ens4 on h2
+          ansible.builtin.command: ethtool -K ens4 rx on tx on gso on tso on gro on lro on
         - name: Set IPv6 address on ens4
           ansible.builtin.command: ip -6 addr add 2001:db8:60:1::2/64 dev ens4
         - name: Set default route on h2 via r4

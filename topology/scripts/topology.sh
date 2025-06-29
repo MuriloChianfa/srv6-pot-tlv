@@ -29,6 +29,7 @@ create_bridge() {
     local BR=$1
     if ! ip link show "$BR" &>/dev/null; then
         ip link add name "$BR" type bridge
+        ip link set "$BR" promisc off
         ip link set "$BR" up
         echo "Bridge $BR created."
     else
@@ -52,7 +53,7 @@ create_tap() {
     local TAP=$1
     local BR=$2
     if ! ip link show "$TAP" &>/dev/null; then
-        ip tuntap add dev "$TAP" mode tap
+        ip tuntap add dev "$TAP" mode tap multi_queue
         ip link set "$TAP" up
         ip link set "$TAP" master "$BR"
         echo "Tap $TAP created and attached to bridge $BR."
@@ -93,11 +94,12 @@ BASE_IMG="base.img"
 prepare_vm_image() {
     local VM_NAME=$1
     local IMG_FILE="${VM_NAME}.img"
-    if [ ! -f "$IMG_FILE" ]; then
+    if [ ! -f "${VM_NAME}/$IMG_FILE" ]; then
         cp "$BASE_IMG" "${VM_NAME}/$IMG_FILE"
         echo "Created disk image for $VM_NAME."
     	cloud-localds "${VM_NAME}/seed-${VM_NAME}.img" "${VM_NAME}/user-data" "${VM_NAME}/meta-data"
-	echo "Created cloud-init seed img for $VM_NAME."
+        qemu-img resize "${VM_NAME}/${VM_NAME}.img" +10G
+	    echo "Created cloud-init seed img for $VM_NAME."
     else
         echo "Disk image for $VM_NAME already exists."
     fi
@@ -121,53 +123,55 @@ launch_vm() {
     shift
     shift
     nohup qemu-system-x86_64 -enable-kvm -nographic -m 2048 -smp 4 -name "$VM_NAME" -hda "$IMG_FILE" \
-	    -netdev user,id=net0,hostfwd="tcp::${VM_PORT}-:22" -device virtio-net-pci,netdev=net0 \
-	    -drive file="${VM_NAME}/seed-${VM_NAME}.img",if=virtio,index=1 "$@" > "${VM_NAME}/qemu.log" 2>&1 &
+	    -netdev user,id=net0,hostfwd="tcp::${VM_PORT}-:22" \
+        -device virtio-net-pci,netdev=net0,mq=on,rx_queue_size=1024,tx_queue_size=1024 \
+	    -drive file="${VM_NAME}/seed-${VM_NAME}.img",if=virtio,index=1 \
+        -object memory-backend-file,id=mem,size=2G,mem-path=/dev/hugepages,share=on \
+        -numa node,memdev=mem -mem-prealloc \
+        "$@" > "${VM_NAME}/qemu.log" 2>&1 &
     echo "Launched VM $VM_NAME."
 }
 
 # Launch h1: one NIC on tap_h1_0
 launch_vm "h1" "2211" \
-    -netdev tap,id=net1,ifname=tap_h1_0 \
-    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:01:01
+    -netdev tap,id=net1,ifname=tap_h1_0,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:01:01,mq=on,rx_queue_size=1024,tx_queue_size=1024
 
 # Launch r1: three NICs (tap_r1_0, tap_r1_1, tap_r1_2)
 launch_vm "r1" "2221" \
-    -netdev tap,id=net1,ifname=tap_r1_0 \
-    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:02:01 \
-    -netdev tap,id=net2,ifname=tap_r1_1 \
-    -device virtio-net-pci,netdev=net2,mac=52:54:00:00:02:02 \
-    -netdev tap,id=net3,ifname=tap_r1_2 \
-    -device virtio-net-pci,netdev=net3,mac=52:54:00:00:02:03
+    -netdev tap,id=net1,ifname=tap_r1_0,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:02:01,mq=on,rx_queue_size=1024,tx_queue_size=1024 \
+    -netdev tap,id=net2,ifname=tap_r1_1,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net2,mac=52:54:00:00:02:02,mq=on,rx_queue_size=1024,tx_queue_size=1024 \
+    -netdev tap,id=net3,ifname=tap_r1_2,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net3,mac=52:54:00:00:02:03,mq=on,rx_queue_size=1024,tx_queue_size=1024
 
 # Launch r2: two NICs (tap_r2_0, tap_r2_1)
 launch_vm "r2" "2222" \
-    -netdev tap,id=net1,ifname=tap_r2_0 \
-    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:03:01 \
-    -netdev tap,id=net2,ifname=tap_r2_1 \
-    -device virtio-net-pci,netdev=net2,mac=52:54:00:00:03:02
+    -netdev tap,id=net1,ifname=tap_r2_0,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:03:01,mq=on,rx_queue_size=1024,tx_queue_size=1024 \
+    -netdev tap,id=net2,ifname=tap_r2_1,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net2,mac=52:54:00:00:03:02,mq=on,rx_queue_size=1024,tx_queue_size=1024
 
 # Launch r3: two NICs (tap_r3_0, tap_r3_1)
 launch_vm "r3" "2223" \
-    -netdev tap,id=net1,ifname=tap_r3_0 \
-    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:04:01 \
-    -netdev tap,id=net2,ifname=tap_r3_1 \
-    -device virtio-net-pci,netdev=net2,mac=52:54:00:00:04:02
+    -netdev tap,id=net1,ifname=tap_r3_0,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:04:01,mq=on,rx_queue_size=1024,tx_queue_size=1024 \
+    -netdev tap,id=net2,ifname=tap_r3_1,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net2,mac=52:54:00:00:04:02,mq=on,rx_queue_size=1024,tx_queue_size=1024
 
 # Launch r4: three NICs (tap_r4_0, tap_r4_1, tap_r4_2)
 launch_vm "r4" "2224" \
-    -netdev tap,id=net1,ifname=tap_r4_0 \
-    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:05:01 \
-    -netdev tap,id=net2,ifname=tap_r4_1 \
-    -device virtio-net-pci,netdev=net2,mac=52:54:00:00:05:02 \
-    -netdev tap,id=net3,ifname=tap_r4_2 \
-    -device virtio-net-pci,netdev=net3,mac=52:54:00:00:05:03
+    -netdev tap,id=net1,ifname=tap_r4_0,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:05:01,mq=on,rx_queue_size=1024,tx_queue_size=1024 \
+    -netdev tap,id=net2,ifname=tap_r4_1,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net2,mac=52:54:00:00:05:02,mq=on,rx_queue_size=1024,tx_queue_size=1024 \
+    -netdev tap,id=net3,ifname=tap_r4_2,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net3,mac=52:54:00:00:05:03,mq=on,rx_queue_size=1024,tx_queue_size=1024
 
 # Launch h2: one NIC on tap_h2_0
 launch_vm "h2" "2212" \
-    -netdev tap,id=net1,ifname=tap_h2_0 \
-    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:06:01
+    -netdev tap,id=net1,ifname=tap_h2_0,vhost=on,queues=4 \
+    -device virtio-net-pci,netdev=net1,mac=52:54:00:00:06:01,mq=on,rx_queue_size=1024,tx_queue_size=1024
 
 echo "All VMs have been launched successfully."
-
-

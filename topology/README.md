@@ -18,31 +18,18 @@ wget https://cloud-images.ubuntu.com/releases/noble/release-20240423/ubuntu-24.0
 
 # ! Wait until all nodes are successfully booted
 
+# Run the Ansible playbook to prepare the environment
+ansible-playbook -i inventory scripts/ansible/prepare.yml
+
 # Run the Ansible playbook to setup the if addresses and SRv6 domain
 ansible-playbook -i inventory scripts/ansible/topology.yml
 
-# Shutdown all VMs
-./scripts/kill-qemu.sh
+# Compile all srv6-pot-tlv algorithms
+make all
 
-# Resize all host and routers images
-qemu-img resize h1/h1.img +10G
-qemu-img resize h2/h2.img +10G
-qemu-img resize r1/r1.img +10G
-qemu-img resize r2/r2.img +10G
-qemu-img resize r3/r3.img +10G
-qemu-img resize r4/r4.img +10G
-```
+# Copy all algorithms to the remote server
+./topology/scripts/copy.sh
 
-## For each router
-
-```bash
-# Install packages for bpftool in each router
-apt install linux-image-$(uname -r) linux-headers-$(uname -r) linux-tools-$(uname -r)
-```
-
-## For host-1
-
-```bash
-# Install packages to run evaluation
-apt install iperf3
+# Install and configure one algorithm
+./topology/scripts/setup.sh blake3
 ```
