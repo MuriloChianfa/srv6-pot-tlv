@@ -25,8 +25,8 @@ def load_rtt_data(filename):
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    labels = ["baseline", "halfsiphash", "siphash", "blake3", "hmac-sha1", "poly1305"]
-    pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "BLAKE3", "HMAC-SHA1", "Poly1305"]
+    labels = ["baseline", "blake3", "halfsiphash", "siphash", "poly1305", "hmac-sha1"]
+    pretty_labels = ["SRv6", "BLAKE3", "HalfSipHash", "SipHash", "Poly1305", "HMAC-SHA1"]
     data_files = [os.path.join(script_dir + '/results', f"rtt_data_{label}.txt") for label in labels]
 
     plot_filename = "round-trip-time.png"

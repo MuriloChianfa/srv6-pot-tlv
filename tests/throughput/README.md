@@ -3,13 +3,13 @@
 1. First we'll need to collect each algorithm round-trip times
 ```bash
 # Run all tests
-./topology/evaluate.sh
+./topology/scripts/evaluate.sh
 
 # Copy artefacts for evaluation
 scp root@192.168.0.57:/root/qemu-virtual-srv6/throughput_data.zip ./tests/throughput/
 cd ./tests/throughput/
 unzip throughput_data.zip
-mv throughput_data/* .
+mv throughput_data/* ./results
 rm -r throughput_data/ throughput_data.zip
 ```
 

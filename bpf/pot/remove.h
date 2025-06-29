@@ -16,7 +16,17 @@ static __always_inline int remove_pot_tlv(struct xdp_md *ctx)
     void *end = (void *)(long)ctx->data_end;
 
     __u32 xdp_len = (__u32)(end - data);
+
+    struct ipv6hdr *ipv6 = IPV6_HDR_PTR;
     struct srh *srh = SRH_HDR_PTR;
+
+    ipv6 = IPV6_HDR_PTR;
+    if (ip6_hdr_cb(ipv6, end) < 0)
+        return -1;
+
+    srh = SRH_HDR_PTR;
+    if (srh_hdr_cb(srh, end) < 0)
+        return -1;
 
     if (recalc_ctx_tlv_len(ctx, POT_TLV_EXT_LEN) < 0) {
         bpf_printk("[seg6_pot_tlv][-] recalc_ctx_tlv_len failed");
@@ -37,10 +47,17 @@ static __always_inline int remove_pot_tlv(struct xdp_md *ctx)
 
     struct pot_tlv recursive_tlv;
     dup_tlv_nonce(tlv, &recursive_tlv);
-
     bpf_printk("[seg6_pot_tlv][*] Recursive recalculation of PoT digest");
-    if (chain_keys(&recursive_tlv, srh, end) < 0) {
-        bpf_printk("[seg6_pot_tlv][-] chain_keys failed");
+
+#if ISADDR
+    if (compute_first_witness(ipv6, &recursive_tlv) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] Failed to compute the first witness");
+        return -1;
+    }
+#endif
+
+    if (chain_keys(srh, &recursive_tlv, end) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] Failed to chain SID keys");
         return -1;
     }
 

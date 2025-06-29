@@ -26,41 +26,30 @@ struct {
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } seg6_pot_keys SEC(".maps");
 
-static __always_inline int chain_keys(struct pot_tlv *tlv, struct srh *srh, void *end)
+static __always_inline int compute_witness(struct in6_addr *ip6, struct pot_tlv *tlv)
 {
-    __u32 segment_size = srh_hdr_len(srh) / IPV6_LEN;
-    if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_size)) > end) {
-        bpf_printk("[seg6_pot_tlv][-] SRH segments out-of-bounds");
+    struct pot_sid_key *pot_sid_key = bpf_map_lookup_elem(&seg6_pot_keys, ip6->s6_addr);
+    if (!pot_sid_key) {
+        bpf_printk("[seg6_pot_tlv][-] Cannot retrieve key for SID %pI6", ip6->s6_addr);
         return -1;
     }
 
-#pragma clang loop unroll(disable)
-    for (__s16 i = SEG6_MAX_KEYS; i >= 0; i--) {
-        if (i < 0) i = 0;
-        if ((__u32)i >= segment_size) continue;
+    bpf_printk("[seg6_pot_tlv][*] Computing keyed-hash for SID %pI6", ip6->s6_addr);
+    compute_tlv(tlv, pot_sid_key->key);
 
-        __u32 segment_offset = SRH_FIXED_HDR_LEN + (IPV6_LEN * (__u32)i);
-        if ((void *)((__u8 *)srh + segment_offset + IPV6_LEN) > end) {
-            bpf_printk("[seg6_pot_tlv][-] SID %u extends beyond packet", i);
-            return -1;
-        }
-
-        struct in6_addr sid;
-        __builtin_memcpy(&sid, (__u8 *)srh + segment_offset, IPV6_LEN);
-
-        struct pot_sid_key *pot_sid_key = bpf_map_lookup_elem(&seg6_pot_keys, &sid.s6_addr);
-        if (!pot_sid_key) {
-            bpf_printk("[seg6_pot_tlv][-] Cannot retrieve key for SID %pI6", sid.s6_addr);
-            return -1;
-        }
-
-        bpf_printk("[seg6_pot_tlv][*] Computing keyed-hash for SID %pI6", sid.s6_addr);
-        compute_tlv(tlv, pot_sid_key->key);
-    }
-
-    bpf_printk("[seg6_pot_tlv][*] keyed-hash calculated to each SID successfully");
+    bpf_printk("[seg6_pot_tlv][*] keyed-hash calculated for witness");
     return 0;
 }
+
+#if ISADDR
+static __always_inline int compute_first_witness(struct ipv6hdr *ipv6, struct pot_tlv *tlv)
+{
+    struct in6_addr sid;
+    __builtin_memcpy(&sid, &ipv6->saddr.in6_u, IPV6_LEN);
+
+    return compute_witness(&sid, tlv);
+}
+#endif
 
 static __always_inline int compute_witness_once(struct pot_tlv *tlv, struct srh *srh, void *end)
 {
@@ -84,16 +73,38 @@ static __always_inline int compute_witness_once(struct pot_tlv *tlv, struct srh 
     struct in6_addr sid;
     __builtin_memcpy(&sid, (__u8 *)srh + segment_offset, IPV6_LEN);
 
-    struct pot_sid_key *pot_sid_key = bpf_map_lookup_elem(&seg6_pot_keys, &sid.s6_addr);
-    if (!pot_sid_key) {
-        bpf_printk("[seg6_pot_tlv][-] Cannot retrieve key for SID %pI6", sid.s6_addr);
+    return compute_witness(&sid, tlv);
+}
+
+static __always_inline int chain_keys(struct srh *srh, struct pot_tlv *tlv, void *end)
+{
+    __u32 segment_size = srh_hdr_len(srh) / IPV6_LEN;
+    if ((void *)((__u8 *)srh + SRH_FIXED_HDR_LEN + (IPV6_LEN * segment_size)) > end) {
+        bpf_printk("[seg6_pot_tlv][-] SRH segments out-of-bounds");
         return -1;
     }
 
-    bpf_printk("[seg6_pot_tlv][*] Computing keyed-hash for SID %pI6", sid.s6_addr);
-    compute_tlv(tlv, pot_sid_key->key);
+#pragma clang loop unroll(disable)
+    for (__s16 i = SEG6_MAX_KEYS; i >= 0; i--) {
+        if (i < 0) i = 0;
+        if ((__u32)i >= segment_size) continue;
 
-    bpf_printk("[seg6_pot_tlv][*] keyed-hash calculated for witness");
+        __u32 segment_offset = SRH_FIXED_HDR_LEN + (IPV6_LEN * (__u32)i);
+        if ((void *)((__u8 *)srh + segment_offset + IPV6_LEN) > end) {
+            bpf_printk("[seg6_pot_tlv][-] SID %u extends beyond packet", i);
+            return -1;
+        }
+
+        struct in6_addr sid;
+        __builtin_memcpy(&sid, (__u8 *)srh + segment_offset, IPV6_LEN);
+
+        if (compute_witness(&sid, tlv)) {
+            bpf_printk("[seg6_pot_tlv][-] Cannot compute witness for SID %pI6", sid.s6_addr);
+            return -1;
+        }
+    }
+
+    bpf_printk("[seg6_pot_tlv][*] keyed-hash calculated to each SID successfully");
     return 0;
 }
 

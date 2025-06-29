@@ -106,12 +106,12 @@ static __always_inline int add_pot_tlv(struct __sk_buff *skb)
     struct pot_tlv tlv;
     init_tlv(&tlv);
 
-    if (chain_keys(&tlv, srh, end) < 0) {
-        bpf_printk("[seg6_pot_tlv][-] chain_keys failed");
+#if ISADDR
+    if (compute_first_witness(ipv6, &tlv) < 0) {
+        bpf_printk("[seg6_pot_tlv][-] Failed to compute the first witness");
         return -1;
     }
-
-    zerofy_witness(&tlv);
+#endif
 
     __u32 tlv_offset = SRH_HDR_OFFSET + SRH_FIXED_HDR_LEN + (IPV6_LEN * (__u32)segment_size);
     if ((void *)data + tlv_offset + POT_TLV_WIRE_LEN > end) {

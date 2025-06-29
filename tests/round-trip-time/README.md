@@ -3,13 +3,13 @@
 1. First we'll need to collect each algorithm round-trip times
 ```bash
 # Run all tests
-./topology/evaluate.sh
+./topology/scripts/evaluate.sh
 
 # Copy artefacts for evaluation
 scp root@192.168.0.57:/root/qemu-virtual-srv6/rtt_data.zip ./tests/round-trip-time/
 cd ./tests/round-trip-time/
 unzip rtt_data.zip
-mv rtt_data/* .
+mv rtt_data/* ./results
 rm -r rtt_data/ rtt_data.zip
 ```
 

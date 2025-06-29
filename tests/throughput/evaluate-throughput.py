@@ -26,8 +26,8 @@ def load_throughput_data(filename):
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    labels = ["baseline", "halfsiphash", "siphash", "poly1305", "blake3", "hmac-sha1"]
-    pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "Poly1305", "BLAKE3", "HMAC-SHA1"]
+    labels = ["baseline", "halfsiphash", "siphash", "blake3", "poly1305", "hmac-sha1"]
+    pretty_labels = ["SRv6", "HalfSipHash", "SipHash", "BLAKE3", "Poly1305", "HMAC-SHA1"]
     data_files = [os.path.join(script_dir + '/results', f"throughput_data_{label}.txt") for label in labels]
 
     all_data = []

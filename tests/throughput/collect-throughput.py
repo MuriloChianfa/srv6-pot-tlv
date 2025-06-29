@@ -67,13 +67,13 @@ if __name__ == "__main__":
     DEFAULT_DURATION = 10
     DEFAULT_NUM_TESTS = 5
     ALLOWED_LABELS = ["baseline", "blake3", "siphash", "halfsiphash", "poly1305", "hmac-sha1"]
-    SIZES = {
-        "baseline": 1308, # mss 1356
-        "blake3": 1228, # mss 1276
-        "hmac-sha1": 1252, # mss 1300
-        "siphash": 1276, # mss 1324
-        "halfsiphash": 1316, # mss 1332
-        "poly1305": 1260, # mss 1308
+    MAXIMUM_SEGMENT_SIZES = {
+        "blake3": 1296,
+        "hmac-sha1": 1304,
+        "poly1305": 1312,
+        "siphash": 1320,
+        "halfsiphash": 1320,
+        "baseline": 1344,
     }
 
     parser = argparse.ArgumentParser(description="Collect iperf3 throughput data and save to a labeled file.")
@@ -100,4 +100,4 @@ if __name__ == "__main__":
     output_filename = f"throughput_data_{args.label}.txt"
     output_path = os.path.join(args.output_dir, output_filename)
 
-    collect_throughput(args.target, args.duration, args.num_tests, SIZES[args.label], output_path)
+    collect_throughput(args.target, args.duration, args.num_tests, MAXIMUM_SEGMENT_SIZES[args.label], output_path)

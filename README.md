@@ -9,17 +9,14 @@
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
                 |                          Nonce (96b)                           |
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-                |                      Witness (32-256b)                         |
-                |                            ...                                 |
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-                |                       Root (32-256b)                           |
+                |                      Witness (64-256b)                         |
                 |                            ...                                 |
                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 ```
 
 This project demonstrates a mechanism for achieving **Proof-of-Transit (PoT)** in an **SRv6 (Segment Routing over IPv6)** network using **eBPF  (Extended Berkeley Packet Filter)** attached to Linux **TC (Traffic Control)** and **XDP (eXpress Data Path)** hooks.
 
-The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** through all nodes in the path. This **TLV** contains metadata (random nonce) and two cryptographic hashs (computed through the fast **SipHash**, **Poly1305** and **BLAKE3 Keyed-hash** algorithms) that allows downstream nodes to verify the path taken by the packet.
+The core idea is to embed a custom **Type-Length-Value (TLV)** object within the **Segment Routing Header (SRH)** through all nodes in the path. This **TLV** contains metadata (random nonce) and a cryptographic hash (computed through the fast **SipHash**, **Poly1305** and **BLAKE3 Keyed-hash** algorithms) that allows downstream nodes to verify the path taken by the packet.
 
 ## Getting Started
 
@@ -86,6 +83,8 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   tcpdump -pni any "ip6[6]==43" -vvv -x
   tshark -i any -p -f "ip6[6]==43" -V -x
   ```
+
+  <div align="center"><img src="./tests/debug/success-logs.png" /></div>
 </details>
 <details>
   <summary style="font-size: 16px;"><strong>Setting-up DEMO scenario for tests</strong></summary>
@@ -96,6 +95,7 @@ The core idea is to embed a custom **Type-Length-Value (TLV)** object within the
   <summary style="font-size: 16px;"><strong>Run tests and evaluation</strong></summary>
 
   - [tests/round-trip-time/README.md](tests/round-trip-time/README.md)
+  - [tests/throughput/README.md](tests/throughput/README.md)
 </details>
 
 ## Preliminary Results
